@@ -1,0 +1,48 @@
+[package]
+name = "keri-kel"
+version = "0.1.0"
+description = "KERI key event log validation: accepting events into a log and deriving key state"
+edition = "2024"
+rust-version = "1.97"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/AABelkhiria/keri-kel"
+documentation = "https://docs.rs/keri-kel"
+readme = "README.md"
+keywords = ["keri", "kel", "key-state", "validation", "identity"]
+categories = ["cryptography"]
+exclude = [".github/", "tools/", "deny.toml", "rustfmt.toml", "rust-toolchain.toml", ".gitignore"]
+
+[dependencies]
+keri-cesr = { version = "0.1.0", features = ["crypto"] }
+keri-protocol = "0.2.0"
+serde_json = { version = "1.0.151", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
+proptest = { version = "1.11.0", default-features = false, features = ["std"] }
+serde = { version = "1.0.228", features = ["derive"] }
+
+[[bench]]
+name = "kever"
+harness = false
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+unreachable_pub = "warn"
+unused_must_use = "deny"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+allow_attributes = "deny"
+dbg_macro = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+panic = "deny"
+print_stderr = "deny"
+print_stdout = "deny"
+todo = "deny"
+unimplemented = "deny"
+unwrap_used = "deny"

@@ -1,0 +1,6 @@
+# `syn` 2 and 3 coexist: serde_derive 1.0.229+ builds with `syn` 3, while curve25519-dalek-derive,
+# which curve25519-dalek pulls in on x86_64, still builds with `syn` 2. Upstream moved the derive
+# crate to `syn` 3 on its main branch (dalek-cryptography/curve25519-dalek#919, merged 2026-08-21)
+# but has not published it; the latest release is still 0.1.1 from 2023. Both are proc-macro
+# crates, so the duplicate costs compile time only and nothing at run time.
+allowed-duplicate-crates = ["syn"]

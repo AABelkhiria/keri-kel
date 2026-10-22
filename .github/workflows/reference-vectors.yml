@@ -1,0 +1,33 @@
+name: Reference vectors
+
+on:
+  pull_request:
+    paths:
+      - "fixtures/**"
+      - "tools/reference-vectors/**"
+      - ".github/workflows/reference-vectors.yml"
+  push:
+    branches: [main]
+    paths:
+      - "fixtures/**"
+      - "tools/reference-vectors/**"
+      - ".github/workflows/reference-vectors.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regenerate-and-compare:
+    name: Regenerate and compare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: tools/reference-vectors/uv.lock
+      # pysodium loads libsodium at import time.
+      - run: sudo apt-get install -y --no-install-recommends libsodium23
+      - run: uv sync --locked --project tools/reference-vectors
+      - run: uv run --locked --project tools/reference-vectors python tools/reference-vectors/regenerate.py --check

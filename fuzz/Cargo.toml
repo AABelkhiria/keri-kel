@@ -1,0 +1,20 @@
+[package]
+name = "keri-kel-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+keri-kel = { path = ".." }
+keri-protocol = "0.2.0"
+libfuzzer-sys = "0.4.13"
+
+[[bin]]
+name = "kever"
+path = "fuzz_targets/kever.rs"
+test = false
+doc = false
+bench = false

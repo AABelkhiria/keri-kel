@@ -1,0 +1,12 @@
+[project]
+name = "keri-kel-reference-vectors"
+version = "0.0.0"
+description = "Generators for the keripy-sourced fixtures under fixtures/, run against a pinned keripy."
+requires-python = ">=3.12.6"
+dependencies = ["keri"]
+
+[tool.uv.sources]
+keri = { git = "https://github.com/WebOfTrust/keripy.git", rev = "4ce4cc79e06653f77342be1bf604086b89b1f090" }
+
+[tool.uv]
+package = false
