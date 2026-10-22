@@ -1,0 +1,262 @@
+//! Failures raised while validating key events.
+
+use core::fmt;
+use std::error::Error;
+
+use keri_cesr::CesrError;
+use keri_protocol::event::EventError;
+use keri_protocol::prefix::PrefixError;
+use keri_protocol::said::SaidError;
+use keri_protocol::serialization::SerializationError;
+use keri_protocol::threshold::ThresholdError;
+
+/// Why an event that is not accepted yet might be accepted later.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum Escrow {
+    /// Its verified controller signatures do not yet meet the current signing threshold; keripy's
+    /// partially signed escrow.
+    PartiallySigned,
+    /// Its verified witness signatures do not yet meet the witness threshold; keripy's partially
+    /// witnessed escrow.
+    PartiallyWitnessed,
+}
+
+/// Stable key event validation failures.
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum KelError {
+    /// The message is not a key event this validator accepts.
+    UnsupportedKind {
+        /// The kind found.
+        kind: &'static str,
+    },
+    /// Delegated inception and rotation are not validated yet.
+    DelegationUnsupported,
+    /// An inception's sequence number is not zero.
+    NonZeroInception,
+    /// A non-transferable identifier's inception carries next keys, witnesses or anchors.
+    NonTransferableInception {
+        /// Label of the field that must be empty.
+        label: &'static str,
+    },
+    /// The signing threshold needs more keys than the event lists.
+    ThresholdExceedsKeys {
+        /// Key positions the threshold requires.
+        required: u128,
+        /// Keys the event lists.
+        keys: usize,
+    },
+    /// A witness list holds the same witness twice.
+    DuplicateWitness {
+        /// Label of the list.
+        label: &'static str,
+    },
+    /// A rotation removes a witness that is not a current witness.
+    CutNotAWitness,
+    /// A rotation lists a witness in two lists that must not overlap.
+    ConflictingWitnessLists {
+        /// First list label.
+        first: &'static str,
+        /// Second list label.
+        second: &'static str,
+    },
+    /// The witness threshold does not fit the witness set.
+    InvalidWitnessThreshold {
+        /// The threshold.
+        threshold: u32,
+        /// Witnesses in the set.
+        witnesses: usize,
+    },
+    /// The event belongs to another identifier than the log.
+    IdentifierMismatch,
+    /// The identifier cannot take further events: it is non-transferable or was abandoned by a
+    /// rotation committing to no next keys.
+    NotTransferable,
+    /// The event's sequence number is past the next one.
+    OutOfOrder {
+        /// The next sequence number.
+        expected: u128,
+        /// The sequence number found.
+        found: u128,
+    },
+    /// The event's sequence number is not past the latest one, and it is not a recovery.
+    Stale {
+        /// The next sequence number.
+        expected: u128,
+        /// The sequence number found.
+        found: u128,
+    },
+    /// A rotation would replace an interaction already accepted at its sequence number.
+    ///
+    /// keripy accepts such a recovery rotation; this validator refuses it until recovery is ported.
+    RecoveryUnsupported,
+    /// The event's prior digest is not the latest event's SAID.
+    PriorMismatch,
+    /// An interaction was offered to an identifier configured for establishment events only.
+    EstablishmentOnly,
+    /// Not one controller signature verifies.
+    NoVerifiedSignatures,
+    /// The verified controller signatures do not meet the signing threshold.
+    NotFullySigned,
+    /// A rotation's verified signatures do not expose enough of the prior next keys.
+    PriorNextNotSatisfied,
+    /// The verified witness signatures do not meet the witness threshold.
+    NotFullyWitnessed,
+    /// A field holds a different shape than a key event defines.
+    UnexpectedFieldShape {
+        /// Label of the field.
+        label: &'static str,
+    },
+    /// The message could not be parsed.
+    Serialization {
+        /// Underlying serialization failure.
+        source: Box<SerializationError>,
+    },
+    /// A self-addressing inception's SAID is not its prefix.
+    SaidNotPrefix,
+    /// The event's SAID does not verify.
+    Said {
+        /// Underlying SAID failure.
+        source: Box<SaidError>,
+    },
+    /// The inception's prefix does not derive from it, or a prefix is malformed.
+    Prefix {
+        /// Underlying prefix failure.
+        source: Box<PrefixError>,
+    },
+    /// A threshold is malformed.
+    Threshold {
+        /// Underlying threshold failure.
+        source: Box<ThresholdError>,
+    },
+    /// CESR material is malformed.
+    Cesr {
+        /// Underlying CESR failure.
+        source: Box<CesrError>,
+    },
+    /// The key state could not be written.
+    Event {
+        /// Underlying event failure.
+        source: Box<EventError>,
+    },
+}
+
+impl KelError {
+    /// Returns why waiting could get the event accepted, or `None` when it never will be.
+    #[must_use]
+    pub const fn escrow(&self) -> Option<Escrow> {
+        match self {
+            Self::NotFullySigned | Self::PriorNextNotSatisfied => Some(Escrow::PartiallySigned),
+            Self::NotFullyWitnessed => Some(Escrow::PartiallyWitnessed),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn serialization(source: SerializationError) -> Self {
+        Self::Serialization {
+            source: Box::new(source),
+        }
+    }
+
+    pub(crate) fn said(source: SaidError) -> Self {
+        Self::Said {
+            source: Box::new(source),
+        }
+    }
+
+    pub(crate) fn prefix(source: PrefixError) -> Self {
+        Self::Prefix {
+            source: Box::new(source),
+        }
+    }
+
+    pub(crate) fn threshold(source: ThresholdError) -> Self {
+        Self::Threshold {
+            source: Box::new(source),
+        }
+    }
+
+    pub(crate) fn cesr(source: CesrError) -> Self {
+        Self::Cesr {
+            source: Box::new(source),
+        }
+    }
+
+    pub(crate) fn event(source: EventError) -> Self {
+        Self::Event {
+            source: Box::new(source),
+        }
+    }
+}
+
+impl fmt::Display for KelError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnsupportedKind { kind } => write!(formatter, "message kind {kind} is not a key event"),
+            Self::DelegationUnsupported => formatter.write_str("delegated events are not validated yet"),
+            Self::NonZeroInception => formatter.write_str("inception sequence number is not zero"),
+            Self::NonTransferableInception { label } => {
+                write!(formatter, "non-transferable inception carries a non-empty {label:?}")
+            }
+            Self::ThresholdExceedsKeys { required, keys } => {
+                write!(
+                    formatter,
+                    "signing threshold needs {required} keys but the event lists {keys}"
+                )
+            }
+            Self::DuplicateWitness { label } => write!(formatter, "witness list {label:?} holds a duplicate"),
+            Self::CutNotAWitness => formatter.write_str("rotation removes a witness that is not current"),
+            Self::ConflictingWitnessLists { first, second } => {
+                write!(formatter, "witness lists {first:?} and {second:?} overlap")
+            }
+            Self::InvalidWitnessThreshold { threshold, witnesses } => {
+                write!(
+                    formatter,
+                    "witness threshold {threshold} does not fit {witnesses} witnesses"
+                )
+            }
+            Self::IdentifierMismatch => formatter.write_str("event belongs to another identifier"),
+            Self::NotTransferable => formatter.write_str("identifier takes no further events"),
+            Self::OutOfOrder { expected, found } => {
+                write!(
+                    formatter,
+                    "sequence number {found} is out of order, expected {expected}"
+                )
+            }
+            Self::Stale { expected, found } => {
+                write!(formatter, "sequence number {found} is stale, expected {expected}")
+            }
+            Self::RecoveryUnsupported => formatter.write_str("recovery rotations are not validated yet"),
+            Self::PriorMismatch => formatter.write_str("prior digest is not the latest event's SAID"),
+            Self::EstablishmentOnly => formatter.write_str("identifier accepts establishment events only"),
+            Self::NoVerifiedSignatures => formatter.write_str("no controller signature verifies"),
+            Self::NotFullySigned => formatter.write_str("controller signatures do not meet the signing threshold"),
+            Self::PriorNextNotSatisfied => {
+                formatter.write_str("rotation signatures do not satisfy the prior next-key threshold")
+            }
+            Self::NotFullyWitnessed => formatter.write_str("witness signatures do not meet the witness threshold"),
+            Self::UnexpectedFieldShape { label } => write!(formatter, "field {label:?} has an unexpected shape"),
+            Self::Serialization { .. } => formatter.write_str("message could not be parsed"),
+            Self::SaidNotPrefix => formatter.write_str("self-addressing inception's SAID is not its prefix"),
+            Self::Said { .. } => formatter.write_str("event SAID does not verify"),
+            Self::Prefix { .. } => formatter.write_str("identifier prefix is invalid"),
+            Self::Threshold { .. } => formatter.write_str("threshold is invalid"),
+            Self::Cesr { .. } => formatter.write_str("CESR material is invalid"),
+            Self::Event { .. } => formatter.write_str("key state could not be written"),
+        }
+    }
+}
+
+impl Error for KelError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Serialization { source } => Some(source.as_ref()),
+            Self::Said { source } => Some(source.as_ref()),
+            Self::Prefix { source } => Some(source.as_ref()),
+            Self::Threshold { source } => Some(source.as_ref()),
+            Self::Cesr { source } => Some(source.as_ref()),
+            Self::Event { source } => Some(source.as_ref()),
+            _ => None,
+        }
+    }
+}
