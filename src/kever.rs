@@ -13,16 +13,22 @@
 //! - for a rotation, the same signatures also expose enough of the keys the prior establishment
 //!   event committed to as next keys, to meet the prior next-key threshold;
 //! - its witness signatures, verified against the witness list in force, meet the witness
-//!   threshold.
+//!   threshold;
+//! - for a delegated inception, or a rotation of a delegated identifier, its delegator has
+//!   accepted an event anchoring a seal of it.
 //!
 //! This ports keripy's `Kever.incept`, `update`, `rotate`, `deriveBacks`, `valSigsWigsDel` and
-//! `exposeds` (`src/keri/core/eventing.py`) for undelegated identifiers whose events carry their
-//! witness signatures. The order of the checks, and therefore which error a doubly-bad event gets,
-//! follows keripy's.
+//! `exposeds` (`src/keri/core/eventing.py`) for events that carry their witness signatures. The
+//! order of the checks, and therefore which error a doubly-bad event gets, follows keripy's.
+//!
+//! A `Kever` holds one log, so it cannot see a delegator's: [`Kever::incept`] and
+//! [`Kever::update`] refuse a delegated event with [`KelError::DelegatorUnknown`]. A
+//! [`Kevery`](crate::Kevery) holds the delegator's log as well and validates the delegation.
 
 use keri_cesr::crypto::digest::Digest;
 use keri_cesr::crypto::signature::IndexedSignature;
 use keri_cesr::crypto::verifier::VerificationKey;
+use keri_protocol::attachment::SealSourceCouple;
 use keri_protocol::event::config::ConfigurationTrait;
 use keri_protocol::event::key_state::{KeyStateBuilder, KeyStateRecord, LatestEstablishment};
 use keri_protocol::event::kind::EventKind;
@@ -55,15 +61,69 @@ pub struct Kever {
     last_establishment: (u128, Said),
     establishment_only: bool,
     do_not_delegate: bool,
+    delegator: Option<IdentifierPrefix>,
     first_seen: u128,
     first_seen_at: Timestamp,
 }
 
-/// The signatures an accepted event carried that verified, which a log stores with it.
+/// The signatures an accepted event carried that verified, and for a delegated event the
+/// delegator's event that approved it, which a log stores with it.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct Verified {
     pub(crate) signatures: Vec<IndexedSignature>,
     pub(crate) witness_signatures: Vec<IndexedSignature>,
+    pub(crate) delegation: Option<SealSourceCouple>,
+}
+
+/// An event offered for validation: its serialization, everything attached to it, and when it is
+/// first seen if accepted.
+pub(crate) struct Offer<'a> {
+    pub(crate) raw: &'a SerializedEvent,
+    pub(crate) signatures: &'a [IndexedSignature],
+    pub(crate) witness_signatures: &'a [IndexedSignature],
+    pub(crate) source: Option<SealSourceCouple>,
+    pub(crate) first_seen_at: Timestamp,
+}
+
+impl<'a> Offer<'a> {
+    fn of(message: &'a Message, first_seen_at: Timestamp) -> Self {
+        let attachments = message.attachments();
+        Self {
+            raw: message.event(),
+            signatures: attachments.controller_signatures(),
+            witness_signatures: attachments.witness_signatures(),
+            // keripy's parser takes the last seal source couple when there are several.
+            source: attachments.seal_source_couples().last().copied(),
+            first_seen_at,
+        }
+    }
+}
+
+/// Where a delegated event's approval is looked up: the delegator's log, which a `Kever` does not
+/// hold.
+pub(crate) trait Delegations {
+    /// keripy's `validateDelegation`: returns the delegator's event anchoring a seal of `event`,
+    /// starting from the seal source couple the event named, if any.
+    fn approve(
+        &self,
+        delegator: &IdentifierPrefix,
+        event: &KeyEventFields,
+        source: Option<SealSourceCouple>,
+    ) -> Result<SealSourceCouple, KelError>;
+}
+
+/// No delegator's log at all, for a `Kever` used on its own.
+struct NoDelegators;
+
+impl Delegations for NoDelegators {
+    fn approve(
+        &self,
+        _: &IdentifierPrefix,
+        _: &KeyEventFields,
+        _: Option<SealSourceCouple>,
+    ) -> Result<SealSourceCouple, KelError> {
+        Err(KelError::DelegatorUnknown)
+    }
 }
 
 /// The establishment fields a validated rotation would put in force.
@@ -79,32 +139,25 @@ impl Kever {
     /// # Errors
     ///
     /// Returns the errors of [`KeyEventFields::read`]; [`KelError::UnsupportedKind`] for anything
-    /// but an inception; [`KelError::NonZeroInception`]; [`KelError::ThresholdExceedsKeys`];
+    /// but an inception; [`KelError::DelegatorUnknown`] for a delegated inception, whose delegator's
+    /// log only a [`Kevery`](crate::Kevery) can consult; [`KelError::NonZeroInception`]; [`KelError::ThresholdExceedsKeys`];
     /// [`KelError::NonTransferableInception`]; [`KelError::DuplicateWitness`] and
     /// [`KelError::InvalidWitnessThreshold`]; [`KelError::NoVerifiedSignatures`]; and, when waiting
     /// for more signatures could help, [`KelError::NotFullySigned`] or
     /// [`KelError::NotFullyWitnessed`].
     pub fn incept(message: &Message, first_seen_at: Timestamp) -> Result<Self, KelError> {
-        let attachments = message.attachments();
-        Self::incept_signed(
-            message.event(),
-            attachments.controller_signatures(),
-            attachments.witness_signatures(),
-            first_seen_at,
-        )
-        .map(|(kever, _)| kever)
+        Self::incept_offered(&Offer::of(message, first_seen_at), &NoDelegators).map(|(kever, _)| kever)
     }
 
-    /// [`Self::incept`] over an event and its signatures held apart, returning the signatures
-    /// that verified, which are what a log stores.
-    pub(crate) fn incept_signed(
-        raw: &SerializedEvent,
-        offered: &[IndexedSignature],
-        offered_witness_signatures: &[IndexedSignature],
-        first_seen_at: Timestamp,
+    /// [`Self::incept`] over an event and its attachments held apart, with delegators to consult,
+    /// returning what verified, which is what a log stores.
+    pub(crate) fn incept_offered(
+        offer: &Offer<'_>,
+        delegations: &dyn Delegations,
     ) -> Result<(Self, Verified), KelError> {
+        let raw = offer.raw;
         let event = KeyEventFields::read(raw)?;
-        if event.kind() != EventKind::Inception {
+        if !event.is_inception() {
             return Err(KelError::UnsupportedKind {
                 kind: event.kind().as_str(),
             });
@@ -129,7 +182,7 @@ impl Kever {
         check_distinct(event.witnesses(), "b")?;
         check_witness_threshold(event.witness_threshold(), event.witnesses().len())?;
 
-        let (indices, signatures) = verified(offered, event.keys(), raw.raw());
+        let (indices, signatures) = verified(offer.signatures, event.keys(), raw.raw());
         if indices.is_empty() {
             return Err(KelError::NoVerifiedSignatures);
         }
@@ -141,17 +194,21 @@ impl Kever {
         }
         let witness_signatures = check_witnessed(
             raw,
-            offered_witness_signatures,
+            offer.witness_signatures,
             event.witnesses(),
             event.witness_threshold(),
         )?;
+        let delegation = match event.delegator() {
+            Some(delegator) => Some(delegations.approve(delegator, &event, offer.source)?),
+            None => None,
+        };
 
         let kever = Self {
             identifier: event.identifier().clone(),
             sequence_number: 0,
             said: event.said(),
             prior: None,
-            latest_kind: EventKind::Inception,
+            latest_kind: event.kind(),
             keys: event.keys().to_vec(),
             signing_threshold,
             next_digests: event.next_digests().to_vec(),
@@ -163,14 +220,16 @@ impl Kever {
             last_establishment: (0, event.said()),
             establishment_only: event.establishment_only(),
             do_not_delegate: event.do_not_delegate(),
+            delegator: event.delegator().cloned(),
             first_seen: 0,
-            first_seen_at,
+            first_seen_at: offer.first_seen_at.clone(),
         };
         Ok((
             kever,
             Verified {
                 signatures,
                 witness_signatures,
+                delegation,
             },
         ))
     }
@@ -183,6 +242,9 @@ impl Kever {
     ///
     /// Returns the errors of [`KeyEventFields::read`]; [`KelError::NotTransferable`];
     /// [`KelError::IdentifierMismatch`]; [`KelError::UnsupportedKind`] for an inception;
+    /// [`KelError::UndelegatedRotation`] for a plain rotation of a delegated identifier, and
+    /// [`KelError::DelegatorUnknown`] for its delegated rotation, whose delegator's log only a
+    /// [`Kevery`](crate::Kevery) can consult;
     /// [`KelError::OutOfOrder`], [`KelError::Stale`] or [`KelError::RecoveryUnsupported`] when the
     /// event does not follow the latest one; [`KelError::PriorMismatch`];
     /// [`KelError::EstablishmentOnly`]; the establishment checks of [`Self::incept`] and, for a
@@ -191,26 +253,18 @@ impl Kever {
     /// [`KelError::NotFullySigned`], [`KelError::PriorNextNotSatisfied`] or
     /// [`KelError::NotFullyWitnessed`].
     pub fn update(&mut self, message: &Message, first_seen_at: Timestamp) -> Result<(), KelError> {
-        let attachments = message.attachments();
-        self.update_signed(
-            message.event(),
-            attachments.controller_signatures(),
-            attachments.witness_signatures(),
-            first_seen_at,
-        )
-        .map(|_| ())
+        self.update_offered(&Offer::of(message, first_seen_at), &NoDelegators)
+            .map(|_| ())
     }
 
-    /// [`Self::update`] over an event and its signatures held apart, returning the signatures
-    /// that verified, which are what a log stores.
-    pub(crate) fn update_signed(
+    /// [`Self::update`] over an event and its attachments held apart, with delegators to consult,
+    /// returning what verified, which is what a log stores.
+    pub(crate) fn update_offered(
         &mut self,
-        raw: &SerializedEvent,
-        offered: &[IndexedSignature],
-        offered_witness_signatures: &[IndexedSignature],
-        first_seen_at: Timestamp,
+        offer: &Offer<'_>,
+        delegations: &dyn Delegations,
     ) -> Result<Verified, KelError> {
-        let event = KeyEventFields::read(raw)?;
+        let event = KeyEventFields::read(offer.raw)?;
         if !self.is_transferable() {
             return Err(KelError::NotTransferable);
         }
@@ -218,23 +272,23 @@ impl Kever {
             return Err(KelError::IdentifierMismatch);
         }
         match event.kind() {
-            EventKind::Rotation => self.rotate(raw, offered, offered_witness_signatures, &event, first_seen_at),
-            EventKind::Interaction => self.interact(raw, offered, offered_witness_signatures, &event, first_seen_at),
+            EventKind::Rotation if self.delegator.is_some() => Err(KelError::UndelegatedRotation),
+            EventKind::Rotation | EventKind::DelegatedRotation => self.rotate(offer, &event, delegations),
+            EventKind::Interaction => self.interact(offer, &event),
             other => Err(KelError::UnsupportedKind { kind: other.as_str() }),
         }
     }
 
     fn rotate(
         &mut self,
-        raw: &SerializedEvent,
-        offered: &[IndexedSignature],
-        offered_witness_signatures: &[IndexedSignature],
+        offer: &Offer<'_>,
         event: &KeyEventFields,
-        first_seen_at: Timestamp,
+        delegations: &dyn Delegations,
     ) -> Result<Verified, KelError> {
+        let raw = offer.raw;
         let rotation = self.validate_rotation(event)?;
 
-        let (indices, signatures) = verified(offered, event.keys(), raw.raw());
+        let (indices, signatures) = verified(offer.signatures, event.keys(), raw.raw());
         if indices.is_empty() {
             return Err(KelError::NoVerifiedSignatures);
         }
@@ -245,7 +299,7 @@ impl Kever {
         {
             return Err(KelError::NotFullySigned);
         }
-        let exposed = self.exposed_indices(offered, event.keys(), raw.raw());
+        let exposed = self.exposed_indices(offer.signatures, event.keys(), raw.raw());
         if !self
             .next_threshold
             .is_satisfied_by(&exposed)
@@ -255,15 +309,21 @@ impl Kever {
         }
         let witness_signatures = check_witnessed(
             raw,
-            offered_witness_signatures,
+            offer.witness_signatures,
             &rotation.witnesses,
             rotation.witness_threshold,
         )?;
+        // keripy validates a delegation only for an identifier with a delegator, so a delegated
+        // rotation of an undelegated identifier is accepted as an ordinary one.
+        let delegation = match &self.delegator {
+            Some(delegator) => Some(delegations.approve(delegator, event, offer.source)?),
+            None => None,
+        };
 
         self.sequence_number = event.sequence_number();
         self.prior = event.prior();
         self.said = event.said();
-        self.latest_kind = EventKind::Rotation;
+        self.latest_kind = event.kind();
         self.keys = event.keys().to_vec();
         self.signing_threshold = rotation.signing_threshold;
         self.next_digests = event.next_digests().to_vec();
@@ -274,10 +334,11 @@ impl Kever {
         self.adds = event.adds().to_vec();
         self.last_establishment = (event.sequence_number(), event.said());
         self.first_seen = self.first_seen.saturating_add(1);
-        self.first_seen_at = first_seen_at;
+        self.first_seen_at = offer.first_seen_at.clone();
         Ok(Verified {
             signatures,
             witness_signatures,
+            delegation,
         })
     }
 
@@ -289,10 +350,17 @@ impl Kever {
             return Err(KelError::OutOfOrder { expected: next, found });
         }
         if found < next {
-            if found <= self.last_establishment.0 {
+            // A delegated rotation may also supersede the latest establishment event itself.
+            let stale = if event.kind() == EventKind::DelegatedRotation {
+                found < self.last_establishment.0
+            } else {
+                found <= self.last_establishment.0
+            };
+            if stale {
                 return Err(KelError::Stale { expected: next, found });
             }
-            // keripy accepts a rotation here when it replaces an interaction: a recovery.
+            // keripy accepts a rotation here when it supersedes an event already accepted: a
+            // recovery.
             return Err(KelError::RecoveryUnsupported);
         }
         if event.prior() != Some(self.said) {
@@ -337,14 +405,8 @@ impl Kever {
         })
     }
 
-    fn interact(
-        &mut self,
-        raw: &SerializedEvent,
-        offered: &[IndexedSignature],
-        offered_witness_signatures: &[IndexedSignature],
-        event: &KeyEventFields,
-        first_seen_at: Timestamp,
-    ) -> Result<Verified, KelError> {
+    fn interact(&mut self, offer: &Offer<'_>, event: &KeyEventFields) -> Result<Verified, KelError> {
+        let raw = offer.raw;
         if self.establishment_only {
             return Err(KelError::EstablishmentOnly);
         }
@@ -367,7 +429,7 @@ impl Kever {
             return Err(KelError::PriorMismatch);
         }
         check_threshold_fits(&self.signing_threshold, self.keys.len())?;
-        let (indices, signatures) = verified(offered, &self.keys, raw.raw());
+        let (indices, signatures) = verified(offer.signatures, &self.keys, raw.raw());
         if indices.is_empty() {
             return Err(KelError::NoVerifiedSignatures);
         }
@@ -379,17 +441,18 @@ impl Kever {
             return Err(KelError::NotFullySigned);
         }
         let witness_signatures =
-            check_witnessed(raw, offered_witness_signatures, &self.witnesses, self.witness_threshold)?;
+            check_witnessed(raw, offer.witness_signatures, &self.witnesses, self.witness_threshold)?;
 
         self.sequence_number = event.sequence_number();
         self.prior = event.prior();
         self.said = event.said();
         self.latest_kind = EventKind::Interaction;
         self.first_seen = self.first_seen.saturating_add(1);
-        self.first_seen_at = first_seen_at;
+        self.first_seen_at = offer.first_seen_at.clone();
         Ok(Verified {
             signatures,
             witness_signatures,
+            delegation: None,
         })
     }
 
@@ -459,6 +522,24 @@ impl Kever {
         &self.witnesses
     }
 
+    /// Returns the witness threshold in force.
+    #[must_use]
+    pub const fn witness_threshold(&self) -> u32 {
+        self.witness_threshold
+    }
+
+    /// Returns the delegator, for a delegated identifier.
+    #[must_use]
+    pub const fn delegator(&self) -> Option<&IdentifierPrefix> {
+        self.delegator.as_ref()
+    }
+
+    /// Returns whether the inception configured do-not-delegate (`DND`).
+    #[must_use]
+    pub const fn does_not_delegate(&self) -> bool {
+        self.do_not_delegate
+    }
+
     /// Writes the state as the key state record a `ksn` reply carries.
     ///
     /// # Errors
@@ -494,6 +575,9 @@ impl Kever {
         .configuration(configuration);
         if let Some(prior) = self.prior {
             builder = builder.prior(prior);
+        }
+        if let Some(delegator) = &self.delegator {
+            builder = builder.delegator(delegator.clone());
         }
         builder.build().map_err(KelError::event)
     }

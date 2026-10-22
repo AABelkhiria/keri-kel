@@ -24,7 +24,8 @@ from dataclasses import asdict
 
 from keri import kering
 from keri.core import eventing
-from keri.core.coring import Diger, MtrDex
+from keri.core.coring import Diger, MtrDex, Saider, Seqner
+from keri.core.counting import Codens, Counter
 from keri.core.signing import Signer
 from keri.db import basing
 from keri.db.dbing import dgKey, snKey
@@ -39,6 +40,7 @@ OUTCOMES = {
     kering.MissingSignatureError: "PartiallySigned",
     kering.MissingWitnessSignatureError: "PartiallyWitnessed",
     kering.UnverifiedReceiptError: "UnverifiedReceipt",
+    kering.MissingDelegationError: "PartiallyDelegated",
 }
 
 
@@ -61,12 +63,20 @@ class Scenario:
         self.kevery = eventing.Kevery(db=self.db)
         self.steps = []
 
-    def event(self, label, serder, expect, *, sigers=(), wigers=(), cigars=()):
+    def event(self, label, serder, expect, *, sigers=(), wigers=(), cigars=(), source=None):
         raw = bytes(eventing.messagize(serder, sigers=list(sigers) or None, wigers=list(wigers) or None,
                                        cigars=list(cigars) or None))
+        seqner = saider = None
+        if source is not None:
+            # A delegated event names its delegating event in a seal source couple, which keripy's
+            # parser hands to `processEvent` apart from the signatures.
+            seqner, saider = Seqner(sn=source[0]), Saider(qb64=source[1])
+            raw += Counter(Codens.SealSourceCouples, count=1, gvrsn=kering.Vrsn_1_0).qb64b
+            raw += seqner.qb64b + saider.qb64b
 
         def run():
-            self.kevery.processEvent(serder=serder, sigers=list(sigers), wigers=list(wigers))
+            self.kevery.processEvent(serder=serder, sigers=list(sigers), wigers=list(wigers),
+                                     delseqner=seqner, delsaider=saider)
             if cigars:
                 self.kevery.processAttachedReceiptCouples(serder, list(cigars))
         return self._offer(label, raw, expect, run)
@@ -104,18 +114,26 @@ class Scenario:
                 if dig is None:
                     continue
                 key = dgKey(pre, bytes(dig))
-                events.append({
+                event = {
                     "sequence_number": sn,
                     "said": bytes(dig).decode(),
                     "signatures": sorted(bytes(sig).decode() for sig in self.db.getSigs(key)),
                     "witness_signatures": sorted(bytes(wig).decode() for wig in self.db.getWigs(key)),
                     "receipts": sorted(bytes(rct).decode() for rct in self.db.getRcts(key)),
-                })
+                }
+                source = self.db.getAes(key)
+                if source is not None:
+                    # The delegating event's sequence number and SAID, stored with a delegated event.
+                    seqner = Seqner(qb64b=bytes(source))
+                    event["delegation"] = {"sequence_number": seqner.sn,
+                                           "said": bytes(source)[len(seqner.qb64b):].decode()}
+                events.append(event)
             states.append({"identifier": pre,
                            "state_json": json.dumps(asdict(kever.state()), separators=(",", ":")),
                            "events": events})
         escrowed = {(bytes(key), bytes(dig)) for key, dig in self.db.getPseItemIter(key=b"")}
         escrowed |= {(bytes(key), bytes(dig)) for key, dig in self.db.getPweItemIter(key=b"")}
+        escrowed |= {(bytes(snKey(pre, sn)), dig.encode()) for (pre,), sn, dig in self.db.pdes.getOnItemIter(keys=b"")}
         waiting = sum(1 for _ in self.db.uwes.getItemIter()) + sum(1 for _ in self.db.getUreItemIter(key=b""))
         return {"states": states, "escrowed_events": len(escrowed), "waiting_receipts": waiting}
 

@@ -21,6 +21,9 @@ pub enum Escrow {
     PartiallyWitnessed,
     /// A receipt names an event not yet accepted; keripy's unverified receipt escrows.
     UnverifiedReceipt,
+    /// A delegated event is fully signed and witnessed, but its delegator's approval has not been
+    /// found yet; keripy's partially delegated escrow.
+    PartiallyDelegated,
 }
 
 /// Stable key event validation failures.
@@ -32,8 +35,6 @@ pub enum KelError {
         /// The kind found.
         kind: &'static str,
     },
-    /// Delegated inception and rotation are not validated yet.
-    DelegationUnsupported,
     /// An inception's sequence number is not zero.
     NonZeroInception,
     /// A non-transferable identifier's inception carries next keys, witnesses or anchors.
@@ -104,6 +105,22 @@ pub enum KelError {
     PriorNextNotSatisfied,
     /// The verified witness signatures do not meet the witness threshold.
     NotFullyWitnessed,
+    /// A delegated identifier rotated with a plain rotation (`rot`); its rotations must be
+    /// delegated (`drt`), so that its delegator approves them.
+    UndelegatedRotation,
+    /// The delegator's inception has not been accepted yet.
+    DelegatorUnknown,
+    /// The delegator's inception configures do-not-delegate (`DND`).
+    DelegationForbidden,
+    /// The event's seal source couple names the delegator's inception, which cannot anchor a
+    /// delegated event.
+    DelegationSourceAtInception,
+    /// The delegator has not accepted an event at the sequence number the seal source couple
+    /// names yet.
+    DelegatingEventUnknown,
+    /// No event of the delegator anchors a seal of this event yet, or the one the seal source
+    /// couple names does not.
+    DelegationNotAnchored,
     /// An event contradicts one already accepted at its sequence number.
     ///
     /// keripy keeps it in a likely-duplicitous escrow; this processor refuses it until duplicity is
@@ -160,6 +177,9 @@ impl KelError {
         match self {
             Self::NotFullySigned | Self::PriorNextNotSatisfied => Some(Escrow::PartiallySigned),
             Self::NotFullyWitnessed => Some(Escrow::PartiallyWitnessed),
+            Self::DelegatorUnknown | Self::DelegatingEventUnknown | Self::DelegationNotAnchored => {
+                Some(Escrow::PartiallyDelegated)
+            }
             _ => None,
         }
     }
@@ -205,7 +225,6 @@ impl fmt::Display for KelError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnsupportedKind { kind } => write!(formatter, "message kind {kind} is not a key event"),
-            Self::DelegationUnsupported => formatter.write_str("delegated events are not validated yet"),
             Self::NonZeroInception => formatter.write_str("inception sequence number is not zero"),
             Self::NonTransferableInception { label } => {
                 write!(formatter, "non-transferable inception carries a non-empty {label:?}")
@@ -247,6 +266,14 @@ impl fmt::Display for KelError {
                 formatter.write_str("rotation signatures do not satisfy the prior next-key threshold")
             }
             Self::NotFullyWitnessed => formatter.write_str("witness signatures do not meet the witness threshold"),
+            Self::UndelegatedRotation => formatter.write_str("delegated identifier rotated without delegation"),
+            Self::DelegatorUnknown => formatter.write_str("delegator's log is not known"),
+            Self::DelegationForbidden => formatter.write_str("delegator does not allow delegation"),
+            Self::DelegationSourceAtInception => {
+                formatter.write_str("seal source couple names the delegator's inception")
+            }
+            Self::DelegatingEventUnknown => formatter.write_str("delegating event is not accepted yet"),
+            Self::DelegationNotAnchored => formatter.write_str("no delegator event anchors this event"),
             Self::LikelyDuplicitous => formatter.write_str("event contradicts one already accepted"),
             Self::StaleReceipt => formatter.write_str("receipt names an event other than the accepted one"),
             Self::TransferableReceiptsUnsupported => {

@@ -8,7 +8,8 @@ use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
     // Any stream of events and receipts, in any order: nothing panics, every accepted log can write
-    // its state, and processing escrows twice in a row changes nothing the second time.
+    // its state, every accepted delegated inception holds the delegating event that approved it,
+    // and processing escrows twice in a row changes nothing the second time.
     let Ok(now) = Timestamp::parse("2021-01-01T00:00:00.000000+00:00") else {
         return;
     };
@@ -33,6 +34,13 @@ fuzz_target!(|data: &[u8]| {
         if let Ok(event) = keri_kel::KeyEventFields::read(message.event()) {
             if let Some(kever) = kevery.kever(event.identifier()) {
                 assert!(kever.state().is_ok(), "an accepted log could not write its state");
+                if kever.delegator().is_some() {
+                    let inception = kevery.logged(event.identifier(), 0);
+                    assert!(
+                        inception.is_some_and(|logged| logged.delegation().is_some()),
+                        "a delegated inception was accepted without its delegating event"
+                    );
+                }
             }
         }
     }

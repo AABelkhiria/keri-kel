@@ -6,16 +6,14 @@
 //! every accepted event, and the same number of events and receipts waiting. See
 //! `fixtures/kevery-keripy/README.md`.
 
+mod support;
+
 use std::error::Error;
 
-use keri_cesr::crypto::signature::IndexedSignature;
-use keri_kel::{Escrow, KelError, Kevery, Processed};
+use keri_kel::Kevery;
 use keri_protocol::event::timestamp::Timestamp;
-use keri_protocol::prefix::IdentifierPrefix;
-use keri_protocol::stream::Message;
 use serde::Deserialize;
-
-const REFERENCE_SHA: &str = "4ce4cc79e06653f77342be1bf604086b89b1f090";
+use support::{REFERENCE_SHA, Scenario, Step, held, offer, outcome_matches, replay};
 
 #[derive(Debug, Deserialize)]
 struct Fixture {
@@ -31,13 +29,6 @@ struct Fixture {
 }
 
 #[derive(Debug, Deserialize)]
-struct Scenario {
-    name: String,
-    note: String,
-    steps: Vec<Step>,
-}
-
-#[derive(Debug, Deserialize)]
 struct Divergence {
     name: String,
     note: String,
@@ -45,162 +36,11 @@ struct Divergence {
     promoted_witness: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct Step {
-    label: String,
-    raw: String,
-    raw_hex: String,
-    rust_outcome: String,
-    keripy: Raised,
-    after: Snapshot,
-}
-
-#[derive(Debug, Deserialize)]
-struct Raised {
-    raised: Option<String>,
-    #[serde(default)]
-    message: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Snapshot {
-    states: Vec<IdentifierSnapshot>,
-    escrowed_events: usize,
-    waiting_receipts: usize,
-}
-
-#[derive(Debug, Deserialize)]
-struct IdentifierSnapshot {
-    identifier: String,
-    state_json: Option<String>,
-    events: Vec<EventSnapshot>,
-}
-
-#[derive(Debug, Deserialize)]
-struct EventSnapshot {
-    sequence_number: u128,
-    said: String,
-    signatures: Vec<String>,
-    witness_signatures: Vec<String>,
-    receipts: Vec<String>,
-}
-
 fn fixture() -> Result<Fixture, Box<dyn Error>> {
     Ok(serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/fixtures/kevery-keripy/v1.json"
     )))?)
-}
-
-fn decode_hex(input: &str) -> Result<Vec<u8>, Box<dyn Error>> {
-    if !input.len().is_multiple_of(2) {
-        return Err("odd-length hexadecimal fixture field".into());
-    }
-    (0..input.len())
-        .step_by(2)
-        .map(|index| {
-            input
-                .get(index..index + 2)
-                .ok_or_else(|| Box::<dyn Error>::from("hexadecimal fixture slice out of range"))
-                .and_then(|pair| u8::from_str_radix(pair, 16).map_err(Into::into))
-        })
-        .collect()
-}
-
-fn outcome_matches(result: &Result<Processed, KelError>, expected: &str) -> bool {
-    match expected {
-        "Accepted" => matches!(result, Ok(Processed::Accepted)),
-        "Duplicate" => matches!(result, Ok(Processed::Duplicate)),
-        "Receipted" => matches!(result, Ok(Processed::Receipted)),
-        "Escrowed:PartiallySigned" => matches!(result, Ok(Processed::Escrowed(Escrow::PartiallySigned))),
-        "Escrowed:PartiallyWitnessed" => matches!(result, Ok(Processed::Escrowed(Escrow::PartiallyWitnessed))),
-        "Escrowed:UnverifiedReceipt" => matches!(result, Ok(Processed::Escrowed(Escrow::UnverifiedReceipt))),
-        "StaleReceipt" => matches!(result, Err(KelError::StaleReceipt)),
-        "LikelyDuplicitous" => matches!(result, Err(KelError::LikelyDuplicitous)),
-        _ => false,
-    }
-}
-
-/// What the port holds for one identifier, in the fixture's vocabulary.
-fn held(kevery: &Kevery, identifier: &str) -> Result<(Option<String>, Vec<EventSnapshot>), Box<dyn Error>> {
-    let prefix = IdentifierPrefix::from_qb64(identifier)?;
-    let Some(kever) = kevery.kever(&prefix) else {
-        return Ok((None, Vec::new()));
-    };
-    let state = String::from_utf8(kever.state()?.to_sad()?.to_json_bytes()?)?;
-    let mut events = Vec::new();
-    for sequence_number in 0..=kever.sequence_number() {
-        let Some(logged) = kevery.logged(&prefix, sequence_number) else {
-            continue;
-        };
-        let mut signatures: Vec<String> = logged
-            .signatures()
-            .iter()
-            .map(IndexedSignature::qb64)
-            .collect::<Result<_, _>>()?;
-        let mut witness_signatures: Vec<String> = logged
-            .witness_signatures()
-            .iter()
-            .map(IndexedSignature::qb64)
-            .collect::<Result<_, _>>()?;
-        let mut receipts: Vec<String> = logged
-            .receipts()
-            .iter()
-            .map(|couple| -> Result<String, Box<dyn Error>> {
-                Ok(format!("{}{}", couple.verifier().qb64()?, couple.signature().qb64()?))
-            })
-            .collect::<Result<_, _>>()?;
-        signatures.sort();
-        witness_signatures.sort();
-        receipts.sort();
-        events.push(EventSnapshot {
-            sequence_number,
-            said: logged.event().said().unwrap_or_default().to_owned(),
-            signatures,
-            witness_signatures,
-            receipts,
-        });
-    }
-    Ok((Some(state), events))
-}
-
-fn compare(kevery: &Kevery, expected: &Snapshot, context: &str) -> Result<(), Box<dyn Error>> {
-    assert_eq!(
-        kevery.escrowed_events(),
-        expected.escrowed_events,
-        "{context}: escrowed events"
-    );
-    assert_eq!(
-        kevery.waiting_receipts(),
-        expected.waiting_receipts,
-        "{context}: waiting receipts"
-    );
-    for identifier in &expected.states {
-        let (state, events) = held(kevery, &identifier.identifier)?;
-        assert_eq!(state, identifier.state_json, "{context}: key state");
-        assert_eq!(events.len(), identifier.events.len(), "{context}: accepted events");
-        for (ours, theirs) in events.iter().zip(&identifier.events) {
-            let at = format!("{context} at {}", theirs.sequence_number);
-            assert_eq!(ours.sequence_number, theirs.sequence_number, "{at}");
-            assert_eq!(ours.said, theirs.said, "{at}: said");
-            assert_eq!(ours.signatures, theirs.signatures, "{at}: signatures");
-            assert_eq!(
-                ours.witness_signatures, theirs.witness_signatures,
-                "{at}: witness signatures"
-            );
-            assert_eq!(ours.receipts, theirs.receipts, "{at}: receipts");
-        }
-    }
-    Ok(())
-}
-
-fn offer(kevery: &mut Kevery, step: &Step, now: &Timestamp) -> Result<Result<Processed, KelError>, Box<dyn Error>> {
-    let raw = decode_hex(&step.raw_hex)?;
-    assert_eq!(raw, step.raw.as_bytes(), "step {} raw and raw_hex disagree", step.label);
-    let message = Message::from_bytes(&raw)?;
-    let result = kevery.process(&message, now);
-    kevery.process_escrows(now);
-    Ok(result)
 }
 
 #[test]
@@ -221,25 +61,7 @@ fn every_scenario_holds_what_keripy_holds() -> Result<(), Box<dyn Error>> {
     let fixture = fixture()?;
     let now = Timestamp::parse(&fixture.now)?;
     assert_eq!(fixture.scenarios.len(), 4);
-    let mut steps = 0;
-    for scenario in &fixture.scenarios {
-        assert_ne!(scenario.note, "");
-        let mut kevery = Kevery::new();
-        for step in &scenario.steps {
-            steps += 1;
-            let context = format!("{}/{}", scenario.name, step.label);
-            let result = offer(&mut kevery, step, &now)?;
-            assert!(
-                outcome_matches(&result, &step.rust_outcome),
-                "{context}: expected {}, got {result:?} (keripy raised {:?}: {:?})",
-                step.rust_outcome,
-                step.keripy.raised,
-                step.keripy.message
-            );
-            compare(&kevery, &step.after, &context)?;
-        }
-    }
-    assert_eq!(steps, 15);
+    assert_eq!(replay(&fixture.scenarios, &now)?, 15);
     Ok(())
 }
 

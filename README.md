@@ -15,12 +15,12 @@ this crate validates.
 |---|---|
 | `event` | Reads a key event off the wire, verifying its SAID and, for an inception, its prefix |
 | `kever` | One identifier's key state, extended event by event under keripy's rules |
-| `kevery` | Many identifiers' logs: routes events and receipts, and escrows events short of signatures |
-| `error` | Why an event was refused, and whether waiting for more signatures could help |
+| `kevery` | Many identifiers' logs: routes events and receipts, approves delegated events against their delegators' logs, and escrows what is not complete yet |
+| `error` | Why an event was refused, and whether waiting could help |
 
 A `Kever` accepts:
 
-- inceptions, rotations and interactions of undelegated identifiers;
+- inceptions, rotations and interactions;
 - signing thresholds, numeric or weighted, against the keys in force;
 - rotations that reveal enough of the keys the prior establishment event committed to, including
   partial rotations;
@@ -30,10 +30,13 @@ A `Kever` accepts:
 A `Kevery` holds many identifiers' logs. It accepts each identifier's events in turn, adds the
 signatures a duplicate or a receipt brings to the stored event, and keeps an event that is short of
 controller or witness signatures, with everything offered for it, until later offers and receipts
-complete it.
+complete it. It accepts a delegated inception, or a rotation of a delegated identifier, once the
+delegator's log holds an event anchoring a seal of it, and stores that delegating event with it;
+until then the event waits too. A `Kever` on its own cannot see a delegator's log, so it refuses
+delegated events as waiting for their delegator.
 
-Not covered yet: delegated identifiers, out-of-order and duplicitous events, recovery rotations, and
-receipts from transferable identifiers.
+Not covered yet: out-of-order and duplicitous events, recovery rotations, and receipts from
+transferable identifiers.
 
 Nothing here reads a clock, a database or a network. The first-seen time is an argument and the
 state lives in the value.

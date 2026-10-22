@@ -15,3 +15,6 @@
 - `Kevery`: routes events and receipts across many identifiers' logs, stores the verified
   signatures of every accepted event, and escrows partially signed and partially witnessed events
   and early receipts until they complete, verified against keripy's `Kevery`.
+- Delegated identifiers: `Kevery` accepts a delegated inception or rotation once its delegator's
+  log anchors a seal of it, checks the seal source couple it names, escrows it as partially
+  delegated until then, and stores the delegating event with it, verified against keripy.
