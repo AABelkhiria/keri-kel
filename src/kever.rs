@@ -29,6 +29,7 @@ use keri_protocol::event::kind::EventKind;
 use keri_protocol::event::timestamp::Timestamp;
 use keri_protocol::prefix::IdentifierPrefix;
 use keri_protocol::said::Said;
+use keri_protocol::serialization::SerializedEvent;
 use keri_protocol::stream::Message;
 use keri_protocol::threshold::SigningThreshold;
 
@@ -58,6 +59,13 @@ pub struct Kever {
     first_seen_at: Timestamp,
 }
 
+/// The signatures an accepted event carried that verified, which a log stores with it.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct Verified {
+    pub(crate) signatures: Vec<IndexedSignature>,
+    pub(crate) witness_signatures: Vec<IndexedSignature>,
+}
+
 /// The establishment fields a validated rotation would put in force.
 struct Rotation {
     signing_threshold: SigningThreshold,
@@ -77,7 +85,25 @@ impl Kever {
     /// for more signatures could help, [`KelError::NotFullySigned`] or
     /// [`KelError::NotFullyWitnessed`].
     pub fn incept(message: &Message, first_seen_at: Timestamp) -> Result<Self, KelError> {
-        let event = KeyEventFields::read(message.event())?;
+        let attachments = message.attachments();
+        Self::incept_signed(
+            message.event(),
+            attachments.controller_signatures(),
+            attachments.witness_signatures(),
+            first_seen_at,
+        )
+        .map(|(kever, _)| kever)
+    }
+
+    /// [`Self::incept`] over an event and its signatures held apart, returning the signatures
+    /// that verified, which are what a log stores.
+    pub(crate) fn incept_signed(
+        raw: &SerializedEvent,
+        offered: &[IndexedSignature],
+        offered_witness_signatures: &[IndexedSignature],
+        first_seen_at: Timestamp,
+    ) -> Result<(Self, Verified), KelError> {
+        let event = KeyEventFields::read(raw)?;
         if event.kind() != EventKind::Inception {
             return Err(KelError::UnsupportedKind {
                 kind: event.kind().as_str(),
@@ -103,8 +129,7 @@ impl Kever {
         check_distinct(event.witnesses(), "b")?;
         check_witness_threshold(event.witness_threshold(), event.witnesses().len())?;
 
-        let signatures = message.attachments().controller_signatures();
-        let indices = verified_indices(signatures, event.keys(), message.event().raw());
+        let (indices, signatures) = verified(offered, event.keys(), raw.raw());
         if indices.is_empty() {
             return Err(KelError::NoVerifiedSignatures);
         }
@@ -114,9 +139,14 @@ impl Kever {
         {
             return Err(KelError::NotFullySigned);
         }
-        check_witnessed(message, event.witnesses(), event.witness_threshold())?;
+        let witness_signatures = check_witnessed(
+            raw,
+            offered_witness_signatures,
+            event.witnesses(),
+            event.witness_threshold(),
+        )?;
 
-        Ok(Self {
+        let kever = Self {
             identifier: event.identifier().clone(),
             sequence_number: 0,
             said: event.said(),
@@ -135,7 +165,14 @@ impl Kever {
             do_not_delegate: event.do_not_delegate(),
             first_seen: 0,
             first_seen_at,
-        })
+        };
+        Ok((
+            kever,
+            Verified {
+                signatures,
+                witness_signatures,
+            },
+        ))
     }
 
     /// Extends the log with a signed rotation or interaction, first seen at `first_seen_at`.
@@ -154,7 +191,26 @@ impl Kever {
     /// [`KelError::NotFullySigned`], [`KelError::PriorNextNotSatisfied`] or
     /// [`KelError::NotFullyWitnessed`].
     pub fn update(&mut self, message: &Message, first_seen_at: Timestamp) -> Result<(), KelError> {
-        let event = KeyEventFields::read(message.event())?;
+        let attachments = message.attachments();
+        self.update_signed(
+            message.event(),
+            attachments.controller_signatures(),
+            attachments.witness_signatures(),
+            first_seen_at,
+        )
+        .map(|_| ())
+    }
+
+    /// [`Self::update`] over an event and its signatures held apart, returning the signatures
+    /// that verified, which are what a log stores.
+    pub(crate) fn update_signed(
+        &mut self,
+        raw: &SerializedEvent,
+        offered: &[IndexedSignature],
+        offered_witness_signatures: &[IndexedSignature],
+        first_seen_at: Timestamp,
+    ) -> Result<Verified, KelError> {
+        let event = KeyEventFields::read(raw)?;
         if !self.is_transferable() {
             return Err(KelError::NotTransferable);
         }
@@ -162,17 +218,23 @@ impl Kever {
             return Err(KelError::IdentifierMismatch);
         }
         match event.kind() {
-            EventKind::Rotation => self.rotate(message, &event, first_seen_at),
-            EventKind::Interaction => self.interact(message, &event, first_seen_at),
+            EventKind::Rotation => self.rotate(raw, offered, offered_witness_signatures, &event, first_seen_at),
+            EventKind::Interaction => self.interact(raw, offered, offered_witness_signatures, &event, first_seen_at),
             other => Err(KelError::UnsupportedKind { kind: other.as_str() }),
         }
     }
 
-    fn rotate(&mut self, message: &Message, event: &KeyEventFields, first_seen_at: Timestamp) -> Result<(), KelError> {
+    fn rotate(
+        &mut self,
+        raw: &SerializedEvent,
+        offered: &[IndexedSignature],
+        offered_witness_signatures: &[IndexedSignature],
+        event: &KeyEventFields,
+        first_seen_at: Timestamp,
+    ) -> Result<Verified, KelError> {
         let rotation = self.validate_rotation(event)?;
 
-        let signatures = message.attachments().controller_signatures();
-        let indices = verified_indices(signatures, event.keys(), message.event().raw());
+        let (indices, signatures) = verified(offered, event.keys(), raw.raw());
         if indices.is_empty() {
             return Err(KelError::NoVerifiedSignatures);
         }
@@ -183,7 +245,7 @@ impl Kever {
         {
             return Err(KelError::NotFullySigned);
         }
-        let exposed = self.exposed_indices(signatures, event.keys(), message.event().raw());
+        let exposed = self.exposed_indices(offered, event.keys(), raw.raw());
         if !self
             .next_threshold
             .is_satisfied_by(&exposed)
@@ -191,7 +253,12 @@ impl Kever {
         {
             return Err(KelError::PriorNextNotSatisfied);
         }
-        check_witnessed(message, &rotation.witnesses, rotation.witness_threshold)?;
+        let witness_signatures = check_witnessed(
+            raw,
+            offered_witness_signatures,
+            &rotation.witnesses,
+            rotation.witness_threshold,
+        )?;
 
         self.sequence_number = event.sequence_number();
         self.prior = event.prior();
@@ -208,7 +275,10 @@ impl Kever {
         self.last_establishment = (event.sequence_number(), event.said());
         self.first_seen = self.first_seen.saturating_add(1);
         self.first_seen_at = first_seen_at;
-        Ok(())
+        Ok(Verified {
+            signatures,
+            witness_signatures,
+        })
     }
 
     /// keripy's `rotate` and `deriveBacks`: ordering, prior digest and witness changes.
@@ -269,10 +339,12 @@ impl Kever {
 
     fn interact(
         &mut self,
-        message: &Message,
+        raw: &SerializedEvent,
+        offered: &[IndexedSignature],
+        offered_witness_signatures: &[IndexedSignature],
         event: &KeyEventFields,
         first_seen_at: Timestamp,
-    ) -> Result<(), KelError> {
+    ) -> Result<Verified, KelError> {
         if self.establishment_only {
             return Err(KelError::EstablishmentOnly);
         }
@@ -295,8 +367,7 @@ impl Kever {
             return Err(KelError::PriorMismatch);
         }
         check_threshold_fits(&self.signing_threshold, self.keys.len())?;
-        let signatures = message.attachments().controller_signatures();
-        let indices = verified_indices(signatures, &self.keys, message.event().raw());
+        let (indices, signatures) = verified(offered, &self.keys, raw.raw());
         if indices.is_empty() {
             return Err(KelError::NoVerifiedSignatures);
         }
@@ -307,7 +378,8 @@ impl Kever {
         {
             return Err(KelError::NotFullySigned);
         }
-        check_witnessed(message, &self.witnesses, self.witness_threshold)?;
+        let witness_signatures =
+            check_witnessed(raw, offered_witness_signatures, &self.witnesses, self.witness_threshold)?;
 
         self.sequence_number = event.sequence_number();
         self.prior = event.prior();
@@ -315,7 +387,10 @@ impl Kever {
         self.latest_kind = EventKind::Interaction;
         self.first_seen = self.first_seen.saturating_add(1);
         self.first_seen_at = first_seen_at;
-        Ok(())
+        Ok(Verified {
+            signatures,
+            witness_signatures,
+        })
     }
 
     /// keripy's `exposeds`: the prior next-key positions whose committed digest matches the key a
@@ -365,6 +440,11 @@ impl Kever {
     #[must_use]
     pub const fn said(&self) -> Said {
         self.said
+    }
+
+    /// Returns the sequence number of the latest establishment event.
+    pub(crate) const fn last_establishment_sequence(&self) -> u128 {
+        self.last_establishment.0
     }
 
     /// Returns the keys in force.
@@ -467,36 +547,52 @@ fn check_witness_threshold(threshold: u32, witnesses: usize) -> Result<(), KelEr
     }
 }
 
-/// Verifies the attached witness signatures against `witnesses` and requires `threshold` of them.
-fn check_witnessed(message: &Message, witnesses: &[IdentifierPrefix], threshold: u32) -> Result<(), KelError> {
+/// Verifies witness signatures against `witnesses`, requires `threshold` of them, and returns the
+/// ones that verified.
+fn check_witnessed(
+    raw: &SerializedEvent,
+    offered: &[IndexedSignature],
+    witnesses: &[IdentifierPrefix],
+    threshold: u32,
+) -> Result<Vec<IndexedSignature>, KelError> {
     if witnesses.is_empty() {
-        return Ok(());
+        return Ok(Vec::new());
     }
-    let keys: Vec<VerificationKey> = witnesses
+    let (indices, verified) = verified(offered, &witness_keys(witnesses), raw.raw());
+    if u32::try_from(indices.len()).unwrap_or(u32::MAX) < threshold {
+        return Err(KelError::NotFullyWitnessed);
+    }
+    Ok(verified)
+}
+
+/// The keys of basic witness prefixes; a witness is always a basic prefix.
+pub(crate) fn witness_keys(witnesses: &[IdentifierPrefix]) -> Vec<VerificationKey> {
+    witnesses
         .iter()
         .filter_map(|witness| match witness {
             IdentifierPrefix::Basic(basic) => Some(basic.key().clone()),
             IdentifierPrefix::SelfAddressing(_) => None,
         })
-        .collect();
-    let indices = verified_indices(message.attachments().witness_signatures(), &keys, message.event().raw());
-    if u32::try_from(indices.len()).unwrap_or(u32::MAX) < threshold {
-        return Err(KelError::NotFullyWitnessed);
-    }
-    Ok(())
+        .collect()
 }
 
-/// keripy's `verifySigs`: drops repeated signatures, then keeps the index of every signature that
-/// verifies against the key at its index. keripy raises `IndexError` for an index past the end; it
-/// is skipped here.
-fn verified_indices(signatures: &[IndexedSignature], keys: &[VerificationKey], message: &[u8]) -> Vec<usize> {
+/// keripy's `verifySigs`: drops repeated signatures, then keeps every signature that verifies
+/// against the key at its index, with that index. keripy raises `IndexError` for an index past
+/// the end; it is skipped here.
+pub(crate) fn verified(
+    signatures: &[IndexedSignature],
+    keys: &[VerificationKey],
+    message: &[u8],
+) -> (Vec<usize>, Vec<IndexedSignature>) {
     unique(signatures)
         .filter_map(|signature| {
             let index = usize::try_from(signature.index()).ok()?;
             let key = keys.get(index)?;
-            key.verify(signature.raw(), message).is_ok().then_some(index)
+            key.verify(signature.raw(), message)
+                .is_ok()
+                .then(|| (index, signature.clone()))
         })
-        .collect()
+        .unzip()
 }
 
 fn unique(signatures: &[IndexedSignature]) -> impl Iterator<Item = &IndexedSignature> {

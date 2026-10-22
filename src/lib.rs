@@ -15,15 +15,21 @@
 //! escrow or drop it, is the caller's: an error says whether waiting could help
 //! ([`KelError::escrow`]).
 //!
-//! Not yet covered: delegated identifiers, receipts that arrive as separate messages, recovery
-//! rotations, and duplicity detection.
+//! [`kevery`] holds many identifiers' logs: it routes each arriving message to the right log,
+//! applies receipts, and keeps events that are short of signatures, with everything offered for
+//! them, until more arrive.
+//!
+//! Not yet covered: delegated identifiers, out-of-order and duplicitous events, recovery rotations,
+//! and receipts from transferable identifiers.
 
 #![forbid(unsafe_code)]
 
 pub mod error;
 pub mod event;
 pub mod kever;
+pub mod kevery;
 
 pub use error::{Escrow, KelError};
 pub use event::KeyEventFields;
 pub use kever::Kever;
+pub use kevery::{Kevery, LoggedEvent, Processed};

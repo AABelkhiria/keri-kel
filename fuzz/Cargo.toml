@@ -18,3 +18,10 @@ path = "fuzz_targets/kever.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "kevery"
+path = "fuzz_targets/kevery.rs"
+test = false
+doc = false
+bench = false

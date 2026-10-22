@@ -15,6 +15,7 @@ this crate validates.
 |---|---|
 | `event` | Reads a key event off the wire, verifying its SAID and, for an inception, its prefix |
 | `kever` | One identifier's key state, extended event by event under keripy's rules |
+| `kevery` | Many identifiers' logs: routes events and receipts, and escrows events short of signatures |
 | `error` | Why an event was refused, and whether waiting for more signatures could help |
 
 A `Kever` accepts:
@@ -26,9 +27,13 @@ A `Kever` accepts:
 - witnessed events whose witness signatures are attached, against the witness threshold;
 - witness lists changed by rotation, and the `EO` and `DND` configuration traits.
 
-Not covered yet: delegated identifiers, receipts that arrive as separate messages, escrows,
-recovery rotations and duplicity. An event refused for want of signatures says so
-(`KelError::escrow`), so a caller can keep it.
+A `Kevery` holds many identifiers' logs. It accepts each identifier's events in turn, adds the
+signatures a duplicate or a receipt brings to the stored event, and keeps an event that is short of
+controller or witness signatures, with everything offered for it, until later offers and receipts
+complete it.
+
+Not covered yet: delegated identifiers, out-of-order and duplicitous events, recovery rotations, and
+receipts from transferable identifiers.
 
 Nothing here reads a clock, a database or a network. The first-seen time is an argument and the
 state lives in the value.
@@ -81,6 +86,7 @@ uv run --locked --project tools/reference-vectors python tools/reference-vectors
 
 ```bash
 cargo +nightly fuzz run kever
+cargo +nightly fuzz run kevery
 ```
 
 ## License

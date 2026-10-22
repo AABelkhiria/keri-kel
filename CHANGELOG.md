@@ -12,3 +12,6 @@
   witness changes and the `EO` and `DND` traits, verified against keripy's `Kever`.
 - `KeyEventFields`: reads a key event, verifying its SAID and, for an inception, its prefix.
 - `KelError`, with `escrow` saying when waiting for more signatures could help.
+- `Kevery`: routes events and receipts across many identifiers' logs, stores the verified
+  signatures of every accepted event, and escrows partially signed and partially witnessed events
+  and early receipts until they complete, verified against keripy's `Kevery`.

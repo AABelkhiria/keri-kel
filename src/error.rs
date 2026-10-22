@@ -19,6 +19,8 @@ pub enum Escrow {
     /// Its verified witness signatures do not yet meet the witness threshold; keripy's partially
     /// witnessed escrow.
     PartiallyWitnessed,
+    /// A receipt names an event not yet accepted; keripy's unverified receipt escrows.
+    UnverifiedReceipt,
 }
 
 /// Stable key event validation failures.
@@ -102,6 +104,16 @@ pub enum KelError {
     PriorNextNotSatisfied,
     /// The verified witness signatures do not meet the witness threshold.
     NotFullyWitnessed,
+    /// An event contradicts one already accepted at its sequence number.
+    ///
+    /// keripy keeps it in a likely-duplicitous escrow; this processor refuses it until duplicity is
+    /// ported.
+    LikelyDuplicitous,
+    /// A receipt names an event other than the one accepted at its sequence number.
+    StaleReceipt,
+    /// A receipt is signed by a transferable identifier; only witness and non-transferable
+    /// receipts are processed yet.
+    TransferableReceiptsUnsupported,
     /// A field holds a different shape than a key event defines.
     UnexpectedFieldShape {
         /// Label of the field.
@@ -235,6 +247,11 @@ impl fmt::Display for KelError {
                 formatter.write_str("rotation signatures do not satisfy the prior next-key threshold")
             }
             Self::NotFullyWitnessed => formatter.write_str("witness signatures do not meet the witness threshold"),
+            Self::LikelyDuplicitous => formatter.write_str("event contradicts one already accepted"),
+            Self::StaleReceipt => formatter.write_str("receipt names an event other than the accepted one"),
+            Self::TransferableReceiptsUnsupported => {
+                formatter.write_str("receipts from transferable identifiers are not processed yet")
+            }
             Self::UnexpectedFieldShape { label } => write!(formatter, "field {label:?} has an unexpected shape"),
             Self::Serialization { .. } => formatter.write_str("message could not be parsed"),
             Self::SaidNotPrefix => formatter.write_str("self-addressing inception's SAID is not its prefix"),
