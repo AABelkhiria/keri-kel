@@ -61,7 +61,7 @@ outcomes.
 - `receipts_and_duplicates_for_accepted_events`: an accepted inception gains a witness signature
   by receipt, a stranger's receipt couple, and a second controller signature when offered again; a
   receipt naming another event at the same number is stale; a different interaction at an accepted
-  number is likely duplicitous.
+  number is kept in the likely-duplicitous escrow.
 - `receipt_completes_a_rotation_changing_witnesses`: a rotation that cuts one witness and adds
   another waits for its new witness set, and a receipt indexed into that new set completes it.
 

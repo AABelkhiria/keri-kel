@@ -13,21 +13,30 @@
 //! source couple; the couple is checked against the delegator's log, and the delegating event found
 //! is stored with the delegated one.
 //!
-//! An event refused only for want of signatures or of its delegator's approval is kept in an
-//! escrow, partially signed, partially witnessed or partially delegated, with everything offered for
-//! it so far. A receipt for an event not yet accepted is kept too. [`Kevery::process_escrows`]
-//! retries all of them: receipts are matched to the events they name, and each escrowed event is
-//! offered again with everything gathered for it. On a retry, a delegated event naming no delegating
-//! event is looked for in its delegator's whole log, as keripy does only when retrying.
+//! An event that cannot be decided yet is kept in an escrow with everything offered for it so far:
+//!
+//! - out of order, when it comes before the events it follows, including any event but an
+//!   inception for an identifier not seen yet; it is kept unverified, since nothing can be
+//!   verified before the key state it needs;
+//! - partially signed, partially witnessed or partially delegated, when it is short of controller
+//!   signatures, witness signatures or its delegator's approval;
+//! - likely duplicitous, when it contradicts an event already accepted at its sequence number. It
+//!   is never accepted; it is kept as evidence until it expires.
+//!
+//! A receipt for an event not yet accepted is kept too. [`Kevery::process_escrows`] retries all of
+//! them in keripy's order: out-of-order events, then waiting receipts, then partially delegated,
+//! partially witnessed and partially signed events, then likely-duplicitous ones; within each
+//! escrow, by identifier, sequence number and arrival. An event retried may move to another escrow:
+//! an out-of-order event whose predecessors arrived may still be short of signatures. On a retry, a
+//! delegated event naming no delegating event is looked for in its delegator's whole log, as keripy
+//! does only when retrying, and an out-of-order event is retried without the seal source couple it
+//! arrived with, as keripy does.
 //!
 //! This ports keripy's `Kevery` (`src/keri/core/eventing.py`): `processEvent`, `processReceipt`,
-//! `processAttachedReceiptCouples`, `Kever.validateDelegation`, and the partially signed, partially
-//! witnessed, partially delegated and unverified receipt escrows with their processors. A rotation
-//! superseding an accepted one, which a delegated identifier may use to recover, is refused with
-//! [`KelError::RecoveryUnsupported`]. Events that arrive out of order and events that
-//! contradict an accepted one are refused here, with [`KelError::OutOfOrder`] and
-//! [`KelError::LikelyDuplicitous`]; keripy escrows both, and so will this port once they are ported
-//! with their own fixtures.
+//! `processAttachedReceiptCouples`, `Kever.validateDelegation`, and the out-of-order, partially
+//! signed, partially witnessed, partially delegated, likely-duplicitous and unverified receipt
+//! escrows with their processors. A rotation superseding an accepted one, a recovery, is refused
+//! with [`KelError::RecoveryUnsupported`].
 //!
 //! One behaviour differs. When a witness's receipt couple is attached to an event, keripy's
 //! `processAttachedReceiptCouples` compares the couple's key, a string, against a list of prefix
@@ -35,9 +44,9 @@
 //! counts toward the witness threshold. It is stored as the witness signature it is here, as
 //! keripy's `processReceipt` does for the same couple arriving in a receipt message.
 //!
-//! Escrowed items keep the time they were first escrowed. keripy drops them after an hour;
-//! [`Kevery::expire_escrows`] drops everything escrowed before a cutoff the caller chooses, since
-//! this crate reads no clock.
+//! Escrowed items keep the time they were first escrowed. keripy drops out-of-order events after
+//! twenty minutes and everything else after an hour; [`Kevery::expire_escrows`] drops everything
+//! escrowed before a cutoff the caller chooses, since this crate reads no clock.
 
 use std::collections::BTreeMap;
 
@@ -142,11 +151,14 @@ struct Log {
     events: BTreeMap<u128, LoggedEvent>,
 }
 
-/// An event waiting for signatures or its delegator's approval, with everything offered for it so
-/// far.
+/// An event waiting, with everything offered for it so far.
 #[derive(Clone, Debug)]
 struct Escrowed {
     reason: Escrow,
+    /// When it entered its current escrow, relative to every other entry: keripy retries entries at
+    /// the same identifier and sequence number in that order.
+    arrival: u64,
+    sequence_number: u128,
     event: SerializedEvent,
     signatures: Vec<IndexedSignature>,
     witness_signatures: Vec<IndexedSignature>,
@@ -175,6 +187,7 @@ struct WaitingReceipt {
 pub struct Kevery {
     logs: BTreeMap<String, Log>,
     escrowed: BTreeMap<(String, String), Escrowed>,
+    arrivals: u64,
     receipts: Vec<WaitingReceipt>,
 }
 
@@ -190,9 +203,7 @@ impl Kevery {
     /// # Errors
     ///
     /// Returns [`KelError::UnsupportedKind`] for a message that is neither a key event nor a
-    /// receipt; [`KelError::OutOfOrder`] for an event beyond the next one, or any non-inception
-    /// event for an unknown identifier; [`KelError::LikelyDuplicitous`] for an event that
-    /// contradicts one already accepted; [`KelError::StaleReceipt`] for a receipt naming an event
+    /// receipt; [`KelError::StaleReceipt`] for a receipt naming an event
     /// other than the one accepted at its sequence number;
     /// [`KelError::TransferableReceiptsUnsupported`] for a receipt from a transferable identifier;
     /// [`KelError::DelegationForbidden`] and [`KelError::DelegationSourceAtInception`] for a
@@ -245,10 +256,11 @@ impl Kevery {
         };
         let Some(log) = self.logs.get(&identifier) else {
             if !event.is_inception() {
-                return Err(KelError::OutOfOrder {
+                let error = KelError::OutOfOrder {
                     expected: 0,
                     found: event.sequence_number(),
-                });
+                };
+                return self.escrow_or_refuse(error, offer, &identifier);
             }
             return match Kever::incept_offered(offer, &delegations) {
                 Ok((kever, verified)) => {
@@ -282,16 +294,14 @@ impl Kevery {
         if !recovery && (event.is_inception() || found < next) {
             // Not the next event: a duplicate of the accepted one, or a contradiction of it.
             let said = said_text(&event)?;
-            let Some(stored) = self
+            let stored = self
                 .logs
                 .get_mut(&identifier)
                 .and_then(|log| log.events.get_mut(&found))
-            else {
-                return Err(KelError::LikelyDuplicitous);
+                .filter(|stored| stored.event.said() == Some(said.as_str()));
+            let Some(stored) = stored else {
+                return self.escrow_or_refuse(KelError::LikelyDuplicitous, offer, &identifier);
             };
-            if stored.event.said() != Some(said.as_str()) {
-                return Err(KelError::LikelyDuplicitous);
-            }
             let (_, signatures) = verified(offer.signatures, &stored.keys, raw.raw());
             let (_, witness_signatures) =
                 verified(offer.witness_signatures, &witness_keys(&stored.witnesses), raw.raw());
@@ -300,7 +310,7 @@ impl Kevery {
             return Ok(Processed::Duplicate);
         }
         if found > next {
-            return Err(KelError::OutOfOrder { expected: next, found });
+            return self.escrow_or_refuse(KelError::OutOfOrder { expected: next, found }, offer, &identifier);
         }
         // The key state is updated on a copy: validating a delegation reads the other logs.
         let mut kever = log.kever.clone();
@@ -318,9 +328,9 @@ impl Kevery {
         }
     }
 
-    /// Keeps an event refused only for want of signatures or of its delegator's approval, merging
-    /// what was offered with what an earlier offer left: keripy's `escrowPSEvent`,
-    /// `escrowPWEvent` and `escrowPDEvent`.
+    /// Keeps an event that cannot be decided yet, merging what was offered with what an earlier
+    /// offer left: keripy's `escrowOOEvent`, `escrowPSEvent`, `escrowPWEvent`, `escrowPDEvent` and
+    /// `escrowLDEvent`.
     fn escrow_or_refuse(
         &mut self,
         error: KelError,
@@ -331,29 +341,50 @@ impl Kevery {
             return Err(error);
         };
         let said = offer.raw.said().ok_or(KelError::UnexpectedFieldShape { label: "d" })?;
+        let sequence_number = offer
+            .raw
+            .sequence_number()
+            .map_err(KelError::serialization)?
+            .ok_or(KelError::UnexpectedFieldShape { label: "s" })?
+            .value();
+        let arrival = self.arrivals;
         let entry = self
             .escrowed
             .entry((identifier.to_owned(), said.to_owned()))
             .or_insert_with(|| Escrowed {
                 reason,
+                arrival,
+                sequence_number,
                 event: offer.raw.clone(),
                 signatures: Vec::new(),
                 witness_signatures: Vec::new(),
                 source: None,
                 since: offer.first_seen_at.clone(),
             });
-        entry.reason = reason;
+        if entry.reason != reason || entry.arrival == arrival {
+            entry.reason = reason;
+            entry.arrival = arrival;
+            self.arrivals = self.arrivals.saturating_add(1);
+        }
         merge(&mut entry.signatures, offer.signatures.to_vec());
-        merge(&mut entry.witness_signatures, offer.witness_signatures.to_vec());
-        if reason == Escrow::PartiallyDelegated {
+        match reason {
+            // keripy keeps only the controller signatures of a likely-duplicitous event.
+            Escrow::LikelyDuplicitous => {}
             // keripy replaces the stored seal source couple with the one just offered, and discards
             // it when it names an event that does not anchor this one, so a retry looks afresh.
-            entry.source = match error {
-                KelError::DelegationNotAnchored => None,
-                _ => offer.source,
-            };
-        } else if entry.source.is_none() {
-            entry.source = offer.source;
+            Escrow::PartiallyDelegated => {
+                merge(&mut entry.witness_signatures, offer.witness_signatures.to_vec());
+                entry.source = match error {
+                    KelError::DelegationNotAnchored => None,
+                    _ => offer.source,
+                };
+            }
+            _ => {
+                merge(&mut entry.witness_signatures, offer.witness_signatures.to_vec());
+                if entry.source.is_none() {
+                    entry.source = offer.source;
+                }
+            }
         }
         Ok(Processed::Escrowed(reason))
     }
@@ -426,43 +457,74 @@ impl Kevery {
         Ok(())
     }
 
-    /// Retries everything waiting, in keripy's order: receipts waiting for an escrowed event, then
-    /// partially delegated events, then partially witnessed ones, then partially signed ones. An
-    /// event accepted now is first seen at `now`. Returns how many events were accepted.
+    /// Retries everything waiting, in keripy's order: out-of-order events, then receipts waiting
+    /// for an escrowed event, then partially delegated, partially witnessed and partially signed
+    /// events, then likely-duplicitous ones. An event accepted now is first seen at `now`. Returns
+    /// how many events were accepted.
     pub fn process_escrows(&mut self, now: &Timestamp) -> usize {
+        let mut accepted = self.retry(Escrow::OutOfOrder, now);
         self.match_waiting_receipts();
-        let mut accepted = 0;
         for reason in [
             Escrow::PartiallyDelegated,
             Escrow::PartiallyWitnessed,
             Escrow::PartiallySigned,
+            Escrow::LikelyDuplicitous,
         ] {
-            let keys: Vec<(String, String)> = self
+            accepted += self.retry(reason, now);
+        }
+        accepted
+    }
+
+    /// Offers every event in one escrow again, by identifier, sequence number and arrival, as
+    /// keripy's escrow processor for it does, and returns how many were accepted.
+    fn retry(&mut self, reason: Escrow, now: &Timestamp) -> usize {
+        let mut keys: Vec<(&(String, String), &Escrowed)> = self
+            .escrowed
+            .iter()
+            .filter(|(_, escrowed)| escrowed.reason == reason)
+            .collect();
+        keys.sort_by_key(|((identifier, _), escrowed)| {
+            (identifier.clone(), escrowed.sequence_number, escrowed.arrival)
+        });
+        let keys: Vec<(String, String)> = keys.into_iter().map(|(key, _)| key.clone()).collect();
+        let mut accepted = 0;
+        for key in keys {
+            let Some(escrowed) = self
                 .escrowed
-                .iter()
-                .filter(|(_, escrowed)| escrowed.reason == reason)
-                .map(|(key, _)| key.clone())
-                .collect();
-            for key in keys {
-                let Some(escrowed) = self.escrowed.get(&key).cloned() else {
-                    continue;
-                };
-                let offer = Offer {
-                    raw: &escrowed.event,
-                    signatures: &escrowed.signatures,
-                    witness_signatures: &escrowed.witness_signatures,
-                    source: escrowed.source,
-                    first_seen_at: now.clone(),
-                };
-                match self.process_event(&offer, true) {
-                    Ok(Processed::Accepted | Processed::Duplicate) => {
-                        self.escrowed.remove(&key);
-                        accepted += 1;
-                    }
-                    Ok(Processed::Escrowed(_) | Processed::Receipted) => {}
-                    Err(_) => {
-                        self.escrowed.remove(&key);
-                    }
+                .get(&key)
+                .filter(|escrowed| escrowed.reason == reason)
+                .cloned()
+            else {
+                continue;
+            };
+            // keripy drops an escrowed event with no controller signature to offer.
+            if escrowed.signatures.is_empty() {
+                self.escrowed.remove(&key);
+                continue;
+            }
+            // keripy retries an out-of-order event without its seal source couple, and a
+            // likely-duplicitous one with its controller signatures alone; only the partial escrows
+            // look through a delegator's whole log.
+            let (witness_signatures, source, eager) = match reason {
+                Escrow::OutOfOrder => (escrowed.witness_signatures.as_slice(), None, false),
+                Escrow::LikelyDuplicitous => (&[][..], None, false),
+                _ => (escrowed.witness_signatures.as_slice(), escrowed.source, true),
+            };
+            let offer = Offer {
+                raw: &escrowed.event,
+                signatures: &escrowed.signatures,
+                witness_signatures,
+                source,
+                first_seen_at: now.clone(),
+            };
+            match self.process_event(&offer, eager) {
+                Ok(Processed::Accepted | Processed::Duplicate) => {
+                    self.escrowed.remove(&key);
+                    accepted += 1;
+                }
+                Ok(Processed::Escrowed(_) | Processed::Receipted) => {}
+                Err(_) => {
+                    self.escrowed.remove(&key);
                 }
             }
         }

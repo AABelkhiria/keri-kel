@@ -15,7 +15,7 @@ this crate validates.
 |---|---|
 | `event` | Reads a key event off the wire, verifying its SAID and, for an inception, its prefix |
 | `kever` | One identifier's key state, extended event by event under keripy's rules |
-| `kevery` | Many identifiers' logs: routes events and receipts, approves delegated events against their delegators' logs, and escrows what is not complete yet |
+| `kevery` | Many identifiers' logs: routes events and receipts, approves delegated events against their delegators' logs, and escrows what cannot be decided yet |
 | `error` | Why an event was refused, and whether waiting could help |
 
 A `Kever` accepts:
@@ -35,8 +35,11 @@ delegator's log holds an event anchoring a seal of it, and stores that delegatin
 until then the event waits too. A `Kever` on its own cannot see a delegator's log, so it refuses
 delegated events as waiting for their delegator.
 
-Not covered yet: out-of-order and duplicitous events, recovery rotations, and receipts from
-transferable identifiers.
+An event that arrives before the events it follows waits for them, unverified, and is retried in
+sequence order once they are accepted. An event contradicting one already accepted is kept aside as
+likely duplicitous and never accepted.
+
+Not covered yet: recovery rotations, and receipts from transferable identifiers.
 
 Nothing here reads a clock, a database or a network. The first-seen time is an argument and the
 state lives in the value.

@@ -24,6 +24,12 @@ pub enum Escrow {
     /// A delegated event is fully signed and witnessed, but its delegator's approval has not been
     /// found yet; keripy's partially delegated escrow.
     PartiallyDelegated,
+    /// An event comes before the events it follows; keripy's out-of-order escrow. Nothing about it
+    /// can be verified until they are accepted.
+    OutOfOrder,
+    /// An event contradicts one already accepted at its sequence number; keripy's
+    /// likely-duplicitous escrow, which holds it aside as evidence and never accepts it.
+    LikelyDuplicitous,
 }
 
 /// Stable key event validation failures.
@@ -122,9 +128,6 @@ pub enum KelError {
     /// couple names does not.
     DelegationNotAnchored,
     /// An event contradicts one already accepted at its sequence number.
-    ///
-    /// keripy keeps it in a likely-duplicitous escrow; this processor refuses it until duplicity is
-    /// ported.
     LikelyDuplicitous,
     /// A receipt names an event other than the one accepted at its sequence number.
     StaleReceipt,
@@ -180,6 +183,8 @@ impl KelError {
             Self::DelegatorUnknown | Self::DelegatingEventUnknown | Self::DelegationNotAnchored => {
                 Some(Escrow::PartiallyDelegated)
             }
+            Self::OutOfOrder { .. } => Some(Escrow::OutOfOrder),
+            Self::LikelyDuplicitous => Some(Escrow::LikelyDuplicitous),
             _ => None,
         }
     }

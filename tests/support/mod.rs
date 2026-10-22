@@ -1,6 +1,7 @@
 //! Replays keripy's log-processing scenarios through the port and compares what both hold.
 //!
-//! The fixtures under `fixtures/kevery-keripy` and `fixtures/delegation-keripy` share one shape:
+//! The fixtures under `fixtures/kevery-keripy`, `fixtures/delegation-keripy` and
+//! `fixtures/out-of-order-keripy` share one shape:
 //! each step is a message, the outcome the port must reach, and a snapshot of what keripy held
 //! after processing it and its escrows.
 
@@ -94,9 +95,10 @@ pub(crate) fn outcome_matches(result: &Result<Processed, KelError>, expected: &s
         "Escrowed:PartiallySigned" => matches!(result, Ok(Processed::Escrowed(Escrow::PartiallySigned))),
         "Escrowed:PartiallyWitnessed" => matches!(result, Ok(Processed::Escrowed(Escrow::PartiallyWitnessed))),
         "Escrowed:PartiallyDelegated" => matches!(result, Ok(Processed::Escrowed(Escrow::PartiallyDelegated))),
+        "Escrowed:OutOfOrder" => matches!(result, Ok(Processed::Escrowed(Escrow::OutOfOrder))),
+        "Escrowed:LikelyDuplicitous" => matches!(result, Ok(Processed::Escrowed(Escrow::LikelyDuplicitous))),
         "Escrowed:UnverifiedReceipt" => matches!(result, Ok(Processed::Escrowed(Escrow::UnverifiedReceipt))),
         "StaleReceipt" => matches!(result, Err(KelError::StaleReceipt)),
-        "LikelyDuplicitous" => matches!(result, Err(KelError::LikelyDuplicitous)),
         "UndelegatedRotation" => matches!(result, Err(KelError::UndelegatedRotation)),
         "DelegationForbidden" => matches!(result, Err(KelError::DelegationForbidden)),
         "DelegationSourceAtInception" => matches!(result, Err(KelError::DelegationSourceAtInception)),

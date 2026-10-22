@@ -41,6 +41,8 @@ OUTCOMES = {
     kering.MissingWitnessSignatureError: "PartiallyWitnessed",
     kering.UnverifiedReceiptError: "UnverifiedReceipt",
     kering.MissingDelegationError: "PartiallyDelegated",
+    kering.OutOfOrderError: "OutOfOrder",
+    kering.LikelyDuplicitousError: "LikelyDuplicitous",
 }
 
 
@@ -134,6 +136,8 @@ class Scenario:
         escrowed = {(bytes(key), bytes(dig)) for key, dig in self.db.getPseItemIter(key=b"")}
         escrowed |= {(bytes(key), bytes(dig)) for key, dig in self.db.getPweItemIter(key=b"")}
         escrowed |= {(bytes(snKey(pre, sn)), dig.encode()) for (pre,), sn, dig in self.db.pdes.getOnItemIter(keys=b"")}
+        escrowed |= {(bytes(key), bytes(dig)) for key, dig in self.db.getOoeItemIter(key=b"")}
+        escrowed |= {(bytes(key), bytes(dig)) for key, dig in self.db.getLdeItemIter(key=b"")}
         waiting = sum(1 for _ in self.db.uwes.getItemIter()) + sum(1 for _ in self.db.getUreItemIter(key=b""))
         return {"states": states, "escrowed_events": len(escrowed), "waiting_receipts": waiting}
 
@@ -203,7 +207,7 @@ def main():
                               "StaleReceipt", wigers=[ws[0].sign(ser=ixn.raw, index=0)])
                      .event("interaction", ixn, "Accepted", sigers=[b0.sign(ser=ixn.raw, index=0)],
                             wigers=[ws[1].sign(ser=ixn.raw, index=1)])
-                     .event("another_interaction_at_the_same_number", other, "LikelyDuplicitous",
+                     .event("another_interaction_at_the_same_number", other, "Escrowed:LikelyDuplicitous",
                             sigers=[b0.sign(ser=other.raw, index=0)], wigers=[ws[1].sign(ser=other.raw, index=1)])
                      .record())
 

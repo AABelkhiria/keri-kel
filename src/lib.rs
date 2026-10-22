@@ -17,11 +17,11 @@
 //!
 //! [`kevery`] holds many identifiers' logs: it routes each arriving message to the right log,
 //! applies receipts, approves delegated events against their delegators' logs, and keeps events
-//! that are short of signatures or of their delegator's approval, with everything offered for
-//! them, until more arrive.
+//! that arrive out of order, are short of signatures or of their delegator's approval, with
+//! everything offered for them, until more arrive. An event contradicting an accepted one is kept
+//! aside as likely duplicitous.
 //!
-//! Not yet covered: out-of-order and duplicitous events, recovery rotations, and receipts from
-//! transferable identifiers.
+//! Not yet covered: recovery rotations, and receipts from transferable identifiers.
 
 #![forbid(unsafe_code)]
 
