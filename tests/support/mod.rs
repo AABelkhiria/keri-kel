@@ -3,7 +3,8 @@
 //! The fixtures under `fixtures/kevery-keripy`, `fixtures/delegation-keripy` and
 //! `fixtures/out-of-order-keripy`, `fixtures/recovery-keripy` and
 //! `fixtures/delegated-recovery-keripy`, `fixtures/validator-receipts-keripy` and
-//! `fixtures/key-state-notices-keripy` and `fixtures/endpoints-keripy` share one shape:
+//! `fixtures/key-state-notices-keripy`, `fixtures/endpoints-keripy` and
+//! `fixtures/observations-keripy` share one shape:
 //! each step is a message, the outcome the port must reach, and a snapshot of what keripy held
 //! after processing it and its escrows.
 
@@ -50,6 +51,14 @@ pub(crate) struct LocationSnapshot {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
+pub(crate) struct ObservationSnapshot {
+    pub(crate) controller: String,
+    pub(crate) watcher: String,
+    pub(crate) observed: String,
+    pub(crate) enabled: bool,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
 pub(crate) struct NoticeSnapshot {
     pub(crate) identifier: String,
     pub(crate) source: String,
@@ -86,6 +95,10 @@ pub(crate) struct Snapshot {
     pub(crate) end_roles: Vec<EndRoleSnapshot>,
     #[serde(default)]
     pub(crate) locations: Vec<LocationSnapshot>,
+    #[serde(default)]
+    pub(crate) observations: Vec<ObservationSnapshot>,
+    #[serde(default)]
+    pub(crate) oobis: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -158,6 +171,7 @@ pub(crate) fn outcome_matches(result: &Result<Processed, KelError>, expected: &s
         "KeyStateAccepted" => matches!(result, Ok(Processed::KeyStateAccepted)),
         "EndRoleAccepted" => matches!(result, Ok(Processed::EndRoleAccepted)),
         "LocationAccepted" => matches!(result, Ok(Processed::LocationAccepted)),
+        "ObservationAccepted" => matches!(result, Ok(Processed::ObservationAccepted)),
         "InvalidReply" => matches!(result, Err(KelError::Reply { .. })),
         "Escrowed:UnverifiedReply" => matches!(result, Ok(Processed::Escrowed(Escrow::UnverifiedReply))),
         "UnverifiedReply" => matches!(result, Err(KelError::UnverifiedReply)),
@@ -275,6 +289,25 @@ pub(crate) fn compare(kevery: &Kevery, expected: &Snapshot, context: &str) -> Re
     locations.sort_by(|left, right| (&left.endpoint, &left.scheme).cmp(&(&right.endpoint, &right.scheme)));
     assert_eq!(end_roles, expected.end_roles, "{context}: end roles");
     assert_eq!(locations, expected.locations, "{context}: locations");
+    let mut observations = Vec::new();
+    for identifier in &expected.states {
+        let watcher = IdentifierPrefix::from_qb64(&identifier.identifier)?;
+        for (controller, observed, record) in kevery.observations(&watcher)? {
+            observations.push(ObservationSnapshot {
+                controller: controller.qb64()?,
+                watcher: identifier.identifier.clone(),
+                observed: observed.qb64()?,
+                enabled: record.enabled(),
+            });
+        }
+    }
+    observations.sort_by(|left, right| {
+        (&left.controller, &left.watcher, &left.observed).cmp(&(&right.controller, &right.watcher, &right.observed))
+    });
+    assert_eq!(observations, expected.observations, "{context}: observations");
+    let mut oobis = kevery.oobis()?;
+    oobis.sort();
+    assert_eq!(oobis, expected.oobis, "{context}: queued OOBIs");
     for identifier in &expected.states {
         let (state, events) = held(kevery, &identifier.identifier)?;
         assert_eq!(state, identifier.state_json, "{context}: key state");

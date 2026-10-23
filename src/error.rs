@@ -154,8 +154,8 @@ pub enum KelError {
         /// The watchers.
         watchers: usize,
     },
-    /// A reply's route is not one a `Kevery` keeps: `/ksn`, `/end/role` or `/loc/scheme`. A
-    /// watcher's observation registrations are the application's.
+    /// A reply's route is not one keripy registers: `/ksn`, `/end/role`, `/loc/scheme` or
+    /// `/watcher`.
     UnsupportedReplyRoute,
     /// A key state notice comes from a source the trust policy does not trust: not the identifier
     /// itself, not one of its witnesses, and not a configured watcher.

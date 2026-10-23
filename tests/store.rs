@@ -8,7 +8,8 @@ use std::error::Error;
 
 use keri_kel::{
     EndRoleRecord, Escrow, EscrowStore, EscrowedEvent, EscrowedReply, KelError, KelStore, Kever, Kevery,
-    KeyStateNotice, LocationRecord, LoggedEvent, MemoryStore, ReceiptStore, ReplyStore, StoreError, WaitingReceipt,
+    KeyStateNotice, LocationRecord, LoggedEvent, MemoryStore, ObservationRecord, ReceiptStore, ReplyStore, StoreError,
+    WaitingReceipt,
 };
 use keri_protocol::event::timestamp::Timestamp;
 use keri_protocol::stream::Message;
@@ -59,6 +60,10 @@ fn a_store_handed_on_carries_everything() -> Result<(), Box<dyn Error>> {
             env!("CARGO_MANIFEST_DIR"),
             "/fixtures/endpoints-keripy/v1.json"
         )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/fixtures/observations-keripy/v1.json"
+        )),
     ];
     let mut steps = 0;
     for json in fixtures {
@@ -70,7 +75,7 @@ fn a_store_handed_on_carries_everything() -> Result<(), Box<dyn Error>> {
             Kevery::with_store(kevery.into_store()).trusting(trust)
         })?;
     }
-    assert_eq!(steps, 193);
+    assert_eq!(steps, 206);
     Ok(())
 }
 
@@ -185,6 +190,39 @@ impl ReceiptStore for Failing {
 }
 
 impl ReplyStore for Failing {
+    fn observation(
+        &self,
+        controller: &str,
+        watcher: &str,
+        observed: &str,
+    ) -> Result<Option<ObservationRecord>, StoreError> {
+        self.inner.observation(controller, watcher, observed)
+    }
+
+    fn observations(&self, watcher: &str) -> Result<Vec<(String, String, ObservationRecord)>, StoreError> {
+        self.inner.observations(watcher)
+    }
+
+    fn put_observation(
+        &mut self,
+        controller: &str,
+        watcher: &str,
+        observed: &str,
+        record: ObservationRecord,
+    ) -> Result<(), StoreError> {
+        self.write()?;
+        self.inner.put_observation(controller, watcher, observed, record)
+    }
+
+    fn hold_oobi(&mut self, url: &str) -> Result<(), StoreError> {
+        self.write()?;
+        self.inner.hold_oobi(url)
+    }
+
+    fn oobis(&self) -> Result<Vec<String>, StoreError> {
+        self.inner.oobis()
+    }
+
     fn end_role(&self, controller: &str, role: &str, endpoint: &str) -> Result<Option<EndRoleRecord>, StoreError> {
         self.inner.end_role(controller, role, endpoint)
     }

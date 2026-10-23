@@ -1,8 +1,8 @@
 //! Replies (`rpy`): signed statements that replace an earlier one from the same signer about the
 //! same thing.
 //!
-//! A [`Kevery`] keeps three kinds: key state notices ([`crate::notice`]), end role grants and
-//! endpoint locations ([`crate::endpoint`]). They share how a reply is verified, which this module
+//! A [`Kevery`] keeps four kinds: key state notices ([`crate::notice`]), end role grants and
+//! endpoint locations ([`crate::endpoint`]), and watcher registrations ([`crate::observation`]). They share how a reply is verified, which this module
 //! holds:
 //!
 //! - the reply's authority is named by its route or attributes, and a signature attached to it must
@@ -15,7 +15,7 @@
 //!
 //! This ports keripy's `Revery.processReply`, `acceptReply` and `processEscrowReply`
 //! (`src/keri/core/routing.py`), using keri-protocol's port of `acceptReply` for the signature
-//! decision. Replies registering a watcher's observations are the application's.
+//! decision.
 
 use std::cell::RefCell;
 
@@ -240,9 +240,12 @@ impl<S: Store> Kevery<S> {
             Ok(ReplyRoute::KeyStateNotice { source, state }) => self.consider_notice(offered, &source, *state, now),
             Ok(ReplyRoute::EndRole { action, end_role }) => self.consider_end_role(offered, action, &end_role, now),
             Ok(ReplyRoute::LocationScheme(location)) => self.consider_location(offered, &location, now),
-            Ok(ReplyRoute::WatcherObservation { .. }) | Err(EventError::UnknownReplyRoute { .. }) => {
-                Err(KelError::UnsupportedReplyRoute)
-            }
+            Ok(ReplyRoute::WatcherObservation {
+                watcher,
+                action,
+                observation,
+            }) => self.consider_observation(offered, &watcher, action, &observation, now),
+            Err(EventError::UnknownReplyRoute { .. }) => Err(KelError::UnsupportedReplyRoute),
             Err(error) => Err(KelError::reply(error)),
         }
     }

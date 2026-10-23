@@ -1,0 +1,602 @@
+{
+  "schema_version": 1,
+  "upstream": "https://github.com/WebOfTrust/keripy.git",
+  "reference_sha": "4ce4cc79e06653f77342be1bf604086b89b1f090",
+  "reference_version": "1.3.6",
+  "generated_on": "2026-10-23",
+  "sources": [
+    "src/keri/core/eventing.py",
+    "src/keri/core/routing.py"
+  ],
+  "now": "2021-01-01T00:00:00.000000+00:00",
+  "scenarios": [
+    {
+      "name": "observation_started_and_stopped",
+      "note": "A controller asks a watcher to observe an identifier, giving an OOBI for it, which is queued; it stops the observation in a later reply. Offered again, the stop is not newer than itself and the start is older, so neither is kept again.",
+      "steps": [
+        {
+          "label": "controller_inception",
+          "raw": "{\"v\":\"KERI10JSON00012b_\",\"t\":\"icp\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"i\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"s\":\"0\",\"kt\":\"1\",\"k\":[\"DIqI4910CfGV_VLbLTy6XXLKZwm_HZQSG_N0iAG0D29c\"],\"nt\":\"1\",\"n\":[\"EHQEteSlbY8drT6QN0MNFGqlQlvWeCrI1evK9L7T0akI\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"a\":[]}-AABAAA6plmdP0yQP4RM0A-1FBuIsRhu4HB2d-nuLddb0qX57dL8_xO2pOBeCOslTAGv3p5a3TmBHGNOSqYi0X4tuA4M",
+          "raw_hex": "7b2276223a224b45524931304a534f4e3030303132625f222c2274223a22696370222c2264223a22454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a35222c2269223a22454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a35222c2273223a2230222c226b74223a2231222c226b223a5b224449714934393130436647565f564c624c54793658584c4b5a776d5f485a5153475f4e306941473044323963225d2c226e74223a2231222c226e223a5b22454851457465536c62593864725436514e304d4e4647716c516c7657654372493165764b394c375430616b49225d2c226274223a2230222c2262223a5b5d2c2263223a5b5d2c2261223a5b5d7d2d41414241414136706c6d64503079515034524d30412d31464275497352687534484232642d6e754c6464623071583537644c385f784f32704f4265434f736c544147763370356133546d4248474e4f53715969305834747541344d",
+          "rust_outcome": "Accepted",
+          "keripy": {
+            "raised": null
+          },
+          "after": {
+            "states": [
+              {
+                "identifier": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                "state_json": "{\"vn\":[1,0],\"i\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"s\":\"0\",\"p\":\"\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"f\":\"0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"icp\",\"kt\":\"1\",\"k\":[\"DIqI4910CfGV_VLbLTy6XXLKZwm_HZQSG_N0iAG0D29c\"],\"nt\":\"1\",\"n\":[\"EHQEteSlbY8drT6QN0MNFGqlQlvWeCrI1evK9L7T0akI\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+                "events": [
+                  {
+                    "sequence_number": 0,
+                    "said": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                    "signatures": [
+                      "AAA6plmdP0yQP4RM0A-1FBuIsRhu4HB2d-nuLddb0qX57dL8_xO2pOBeCOslTAGv3p5a3TmBHGNOSqYi0X4tuA4M"
+                    ],
+                    "witness_signatures": [],
+                    "receipts": []
+                  }
+                ]
+              },
+              {
+                "identifier": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "state_json": null,
+                "events": []
+              }
+            ],
+            "escrowed_events": 0,
+            "waiting_receipts": 0
+          }
+        },
+        {
+          "label": "start",
+          "raw": "{\"v\":\"KERI10JSON00018d_\",\"t\":\"rpy\",\"d\":\"EBaGVNYyKg6Dli5mEgNYrpohB18mw5SshV7YXvnOIl0s\",\"dt\":\"2021-01-01T00:00:01.000000+00:00\",\"r\":\"/watcher/BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq/add\",\"a\":{\"cid\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"oid\":\"EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z\",\"oobi\":\"http://witness.example:5642/oobi/EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z/witness\"}}-FABEM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz50AAAAAAAAAAAAAAAAAAAAAAAEM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5-AABAADI52mOnb-SrcarCes4jQEHeah5c2EpfU36zH0-gR5mGTtGaq5ckFpe33TvVQbipj8GJdsnUylO1p2qVlToAVwF",
+          "raw_hex": "7b2276223a224b45524931304a534f4e3030303138645f222c2274223a22727079222c2264223a2245426147564e59794b6736446c69356d45674e5972706f684231386d773553736856375958766e4f496c3073222c226474223a22323032312d30312d30315430303a30303a30312e3030303030302b30303a3030222c2272223a222f776174636865722f424b7a6244696c3050777a4c686f62516f51544c6c754261767637425534646c35316c59616666636a456d712f616464222c2261223a7b22636964223a22454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a35222c226f6964223a2245426b794276634c734e5179764c3773714e736750663964716a7231486e6a5278777173783532637455355a222c226f6f6269223a22687474703a2f2f7769746e6573732e6578616d706c653a353634322f6f6f62692f45426b794276634c734e5179764c3773714e736750663964716a7231486e6a5278777173783532637455355a2f7769746e657373227d7d2d464142454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a35304141414141414141414141414141414141414141414141454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a352d4141424141444935326d4f6e622d5372636172436573346a5145486561683563324570665533367a48302d6752356d47547447617135636b4670653333547656516269706a38474a64736e55796c4f31703271566c546f41567746",
+          "rust_outcome": "ObservationAccepted",
+          "keripy": {
+            "raised": null
+          },
+          "after": {
+            "states": [
+              {
+                "identifier": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                "state_json": "{\"vn\":[1,0],\"i\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"s\":\"0\",\"p\":\"\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"f\":\"0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"icp\",\"kt\":\"1\",\"k\":[\"DIqI4910CfGV_VLbLTy6XXLKZwm_HZQSG_N0iAG0D29c\"],\"nt\":\"1\",\"n\":[\"EHQEteSlbY8drT6QN0MNFGqlQlvWeCrI1evK9L7T0akI\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+                "events": [
+                  {
+                    "sequence_number": 0,
+                    "said": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                    "signatures": [
+                      "AAA6plmdP0yQP4RM0A-1FBuIsRhu4HB2d-nuLddb0qX57dL8_xO2pOBeCOslTAGv3p5a3TmBHGNOSqYi0X4tuA4M"
+                    ],
+                    "witness_signatures": [],
+                    "receipts": []
+                  }
+                ]
+              },
+              {
+                "identifier": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "state_json": null,
+                "events": []
+              }
+            ],
+            "escrowed_events": 0,
+            "waiting_receipts": 0,
+            "observations": [
+              {
+                "controller": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "observed": "EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z",
+                "enabled": true
+              }
+            ],
+            "oobis": [
+              "http://witness.example:5642/oobi/EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z/witness"
+            ]
+          }
+        },
+        {
+          "label": "stop",
+          "raw": "{\"v\":\"KERI10JSON00012e_\",\"t\":\"rpy\",\"d\":\"EH_nEtUNE_yltCKm_IryQXdaAYtcoqdBZoJINbxrklhS\",\"dt\":\"2021-01-01T00:00:02.000000+00:00\",\"r\":\"/watcher/BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq/cut\",\"a\":{\"cid\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"oid\":\"EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z\"}}-FABEM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz50AAAAAAAAAAAAAAAAAAAAAAAEM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5-AABAAABf0c1w_4KcSAo_utY8eIoyh2ng4gDzj44hXi6YIiw5SEg_nOpkLa4a9CbJZ_nmszcLGa1PYFapkpsHrCeKW4O",
+          "raw_hex": "7b2276223a224b45524931304a534f4e3030303132655f222c2274223a22727079222c2264223a2245485f6e4574554e455f796c74434b6d5f49727951586461415974636f7164425a6f4a494e6278726b6c6853222c226474223a22323032312d30312d30315430303a30303a30322e3030303030302b30303a3030222c2272223a222f776174636865722f424b7a6244696c3050777a4c686f62516f51544c6c754261767637425534646c35316c59616666636a456d712f637574222c2261223a7b22636964223a22454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a35222c226f6964223a2245426b794276634c734e5179764c3773714e736750663964716a7231486e6a5278777173783532637455355a227d7d2d464142454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a35304141414141414141414141414141414141414141414141454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a352d4141424141414266306331775f344b6353416f5f7574593865496f7968326e673467447a6a34346858693659496977355345675f6e4f706b4c6134613943624a5a5f6e6d737a634c47613150594661706b7073487243654b57344f",
+          "rust_outcome": "ObservationAccepted",
+          "keripy": {
+            "raised": null
+          },
+          "after": {
+            "states": [
+              {
+                "identifier": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                "state_json": "{\"vn\":[1,0],\"i\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"s\":\"0\",\"p\":\"\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"f\":\"0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"icp\",\"kt\":\"1\",\"k\":[\"DIqI4910CfGV_VLbLTy6XXLKZwm_HZQSG_N0iAG0D29c\"],\"nt\":\"1\",\"n\":[\"EHQEteSlbY8drT6QN0MNFGqlQlvWeCrI1evK9L7T0akI\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+                "events": [
+                  {
+                    "sequence_number": 0,
+                    "said": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                    "signatures": [
+                      "AAA6plmdP0yQP4RM0A-1FBuIsRhu4HB2d-nuLddb0qX57dL8_xO2pOBeCOslTAGv3p5a3TmBHGNOSqYi0X4tuA4M"
+                    ],
+                    "witness_signatures": [],
+                    "receipts": []
+                  }
+                ]
+              },
+              {
+                "identifier": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "state_json": null,
+                "events": []
+              }
+            ],
+            "escrowed_events": 0,
+            "waiting_receipts": 0,
+            "observations": [
+              {
+                "controller": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "observed": "EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z",
+                "enabled": false
+              }
+            ],
+            "oobis": [
+              "http://witness.example:5642/oobi/EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z/witness"
+            ]
+          }
+        },
+        {
+          "label": "stop_again",
+          "raw": "{\"v\":\"KERI10JSON00012e_\",\"t\":\"rpy\",\"d\":\"EH_nEtUNE_yltCKm_IryQXdaAYtcoqdBZoJINbxrklhS\",\"dt\":\"2021-01-01T00:00:02.000000+00:00\",\"r\":\"/watcher/BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq/cut\",\"a\":{\"cid\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"oid\":\"EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z\"}}-FABEM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz50AAAAAAAAAAAAAAAAAAAAAAAEM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5-AABAAABf0c1w_4KcSAo_utY8eIoyh2ng4gDzj44hXi6YIiw5SEg_nOpkLa4a9CbJZ_nmszcLGa1PYFapkpsHrCeKW4O",
+          "raw_hex": "7b2276223a224b45524931304a534f4e3030303132655f222c2274223a22727079222c2264223a2245485f6e4574554e455f796c74434b6d5f49727951586461415974636f7164425a6f4a494e6278726b6c6853222c226474223a22323032312d30312d30315430303a30303a30322e3030303030302b30303a3030222c2272223a222f776174636865722f424b7a6244696c3050777a4c686f62516f51544c6c754261767637425534646c35316c59616666636a456d712f637574222c2261223a7b22636964223a22454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a35222c226f6964223a2245426b794276634c734e5179764c3773714e736750663964716a7231486e6a5278777173783532637455355a227d7d2d464142454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a35304141414141414141414141414141414141414141414141454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a352d4141424141414266306331775f344b6353416f5f7574593865496f7968326e673467447a6a34346858693659496977355345675f6e4f706b4c6134613943624a5a5f6e6d737a634c47613150594661706b7073487243654b57344f",
+          "rust_outcome": "UnverifiedReply",
+          "keripy": {
+            "raised": "UnverifiedReplyError",
+            "message": "Unverified watcher add reply. {'v': 'KERI10JSON00012e_', 't': 'rpy', 'd': 'EH_nEtUNE_yltCKm_IryQXdaAYtcoqdBZoJINbxrklhS', 'dt': '2021-01-01T00:00:02.000000+00:00', 'r': '/watcher/BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq/cut', 'a': {'cid"
+          },
+          "after": {
+            "states": [
+              {
+                "identifier": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                "state_json": "{\"vn\":[1,0],\"i\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"s\":\"0\",\"p\":\"\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"f\":\"0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"icp\",\"kt\":\"1\",\"k\":[\"DIqI4910CfGV_VLbLTy6XXLKZwm_HZQSG_N0iAG0D29c\"],\"nt\":\"1\",\"n\":[\"EHQEteSlbY8drT6QN0MNFGqlQlvWeCrI1evK9L7T0akI\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+                "events": [
+                  {
+                    "sequence_number": 0,
+                    "said": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                    "signatures": [
+                      "AAA6plmdP0yQP4RM0A-1FBuIsRhu4HB2d-nuLddb0qX57dL8_xO2pOBeCOslTAGv3p5a3TmBHGNOSqYi0X4tuA4M"
+                    ],
+                    "witness_signatures": [],
+                    "receipts": []
+                  }
+                ]
+              },
+              {
+                "identifier": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "state_json": null,
+                "events": []
+              }
+            ],
+            "escrowed_events": 0,
+            "waiting_receipts": 0,
+            "observations": [
+              {
+                "controller": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "observed": "EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z",
+                "enabled": false
+              }
+            ],
+            "oobis": [
+              "http://witness.example:5642/oobi/EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z/witness"
+            ]
+          }
+        },
+        {
+          "label": "start_again",
+          "raw": "{\"v\":\"KERI10JSON00012e_\",\"t\":\"rpy\",\"d\":\"EBzUoSEm3sxPbuCcSkXgU6FAhYhK653wOIj7RBHDV2MA\",\"dt\":\"2021-01-01T00:00:01.000000+00:00\",\"r\":\"/watcher/BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq/add\",\"a\":{\"cid\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"oid\":\"EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z\"}}-FABEM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz50AAAAAAAAAAAAAAAAAAAAAAAEM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5-AABAADHGSRxJhuwzBVZcBGk8FzGviX8cISJDLn2vF9qKvTYp108VcqDHh7FxQyAF4ivTGC0q-xkAAdaa-nenjuNHVMB",
+          "raw_hex": "7b2276223a224b45524931304a534f4e3030303132655f222c2274223a22727079222c2264223a2245427a556f53456d3373785062754363536b5867553646416859684b363533774f496a375242484456324d41222c226474223a22323032312d30312d30315430303a30303a30312e3030303030302b30303a3030222c2272223a222f776174636865722f424b7a6244696c3050777a4c686f62516f51544c6c754261767637425534646c35316c59616666636a456d712f616464222c2261223a7b22636964223a22454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a35222c226f6964223a2245426b794276634c734e5179764c3773714e736750663964716a7231486e6a5278777173783532637455355a227d7d2d464142454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a35304141414141414141414141414141414141414141414141454d2d5746444c4f364e782d676d564d506c345668694b52687373426e6454514233686f434f473867497a352d41414241414448475352784a6875777a42565a6342476b38467a47766958386349534a444c6e32764639714b765459703130385663714448683746785179414634697654474330712d786b41416461612d6e656e6a754e48564d42",
+          "rust_outcome": "UnverifiedReply",
+          "keripy": {
+            "raised": "UnverifiedReplyError",
+            "message": "Unverified watcher add reply. {'v': 'KERI10JSON00012e_', 't': 'rpy', 'd': 'EBzUoSEm3sxPbuCcSkXgU6FAhYhK653wOIj7RBHDV2MA', 'dt': '2021-01-01T00:00:01.000000+00:00', 'r': '/watcher/BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq/add', 'a': {'cid"
+          },
+          "after": {
+            "states": [
+              {
+                "identifier": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                "state_json": "{\"vn\":[1,0],\"i\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"s\":\"0\",\"p\":\"\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"f\":\"0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"icp\",\"kt\":\"1\",\"k\":[\"DIqI4910CfGV_VLbLTy6XXLKZwm_HZQSG_N0iAG0D29c\"],\"nt\":\"1\",\"n\":[\"EHQEteSlbY8drT6QN0MNFGqlQlvWeCrI1evK9L7T0akI\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+                "events": [
+                  {
+                    "sequence_number": 0,
+                    "said": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                    "signatures": [
+                      "AAA6plmdP0yQP4RM0A-1FBuIsRhu4HB2d-nuLddb0qX57dL8_xO2pOBeCOslTAGv3p5a3TmBHGNOSqYi0X4tuA4M"
+                    ],
+                    "witness_signatures": [],
+                    "receipts": []
+                  }
+                ]
+              },
+              {
+                "identifier": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "state_json": null,
+                "events": []
+              }
+            ],
+            "escrowed_events": 0,
+            "waiting_receipts": 0,
+            "observations": [
+              {
+                "controller": "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5",
+                "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "observed": "EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z",
+                "enabled": false
+              }
+            ],
+            "oobis": [
+              "http://witness.example:5642/oobi/EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z/witness"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "registration_signed_by_the_watcher",
+      "note": "A registration signed by the watcher rather than the controller is not kept.",
+      "steps": [
+        {
+          "label": "controller_inception",
+          "raw": "{\"v\":\"KERI10JSON00012b_\",\"t\":\"icp\",\"d\":\"EGn97Kdjtp-rEc4p90zhvveUYnOnVFRPFpH2G_0BDMis\",\"i\":\"EGn97Kdjtp-rEc4p90zhvveUYnOnVFRPFpH2G_0BDMis\",\"s\":\"0\",\"kt\":\"1\",\"k\":[\"DEOnLnFEAXYt9mtowm373yaCquyfJHTspGE-QkoPuv08\"],\"nt\":\"1\",\"n\":[\"ECTVYkqpI9mQ5gd4jOpOJcpU1OJN8ZPrV1NdKt_vNt_u\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"a\":[]}-AABAACbkmzuOuWalrC0GvFhgPSln0QC9jMbmSHXO3hCRH0Y6C_6Z_Be0-Psn0EqgtVYo4jqVJAzfk36_3HqSQcDeO0A",
+          "raw_hex": "7b2276223a224b45524931304a534f4e3030303132625f222c2274223a22696370222c2264223a2245476e39374b646a74702d724563347039307a6876766555596e4f6e5646525046704832475f3042444d6973222c2269223a2245476e39374b646a74702d724563347039307a6876766555596e4f6e5646525046704832475f3042444d6973222c2273223a2230222c226b74223a2231222c226b223a5b2244454f6e4c6e464541585974396d746f776d333733796143717579664a4854737047452d516b6f5075763038225d2c226e74223a2231222c226e223a5b2245435456596b717049396d51356764346a4f704f4a637055314f4a4e385a507256314e644b745f764e745f75225d2c226274223a2230222c2262223a5b5d2c2263223a5b5d2c2261223a5b5d7d2d414142414143626b6d7a754f7557616c724330477646686750536c6e305143396a4d626d5348584f3368435248305936435f365a5f4265302d50736e304571677456596f346a71564a417a666b33365f33487153516344654f3041",
+          "rust_outcome": "Accepted",
+          "keripy": {
+            "raised": null
+          },
+          "after": {
+            "states": [
+              {
+                "identifier": "EGn97Kdjtp-rEc4p90zhvveUYnOnVFRPFpH2G_0BDMis",
+                "state_json": "{\"vn\":[1,0],\"i\":\"EGn97Kdjtp-rEc4p90zhvveUYnOnVFRPFpH2G_0BDMis\",\"s\":\"0\",\"p\":\"\",\"d\":\"EGn97Kdjtp-rEc4p90zhvveUYnOnVFRPFpH2G_0BDMis\",\"f\":\"0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"icp\",\"kt\":\"1\",\"k\":[\"DEOnLnFEAXYt9mtowm373yaCquyfJHTspGE-QkoPuv08\"],\"nt\":\"1\",\"n\":[\"ECTVYkqpI9mQ5gd4jOpOJcpU1OJN8ZPrV1NdKt_vNt_u\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EGn97Kdjtp-rEc4p90zhvveUYnOnVFRPFpH2G_0BDMis\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+                "events": [
+                  {
+                    "sequence_number": 0,
+                    "said": "EGn97Kdjtp-rEc4p90zhvveUYnOnVFRPFpH2G_0BDMis",
+                    "signatures": [
+                      "AACbkmzuOuWalrC0GvFhgPSln0QC9jMbmSHXO3hCRH0Y6C_6Z_Be0-Psn0EqgtVYo4jqVJAzfk36_3HqSQcDeO0A"
+                    ],
+                    "witness_signatures": [],
+                    "receipts": []
+                  }
+                ]
+              },
+              {
+                "identifier": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "state_json": null,
+                "events": []
+              }
+            ],
+            "escrowed_events": 0,
+            "waiting_receipts": 0
+          }
+        },
+        {
+          "label": "start_signed_by_the_watcher",
+          "raw": "{\"v\":\"KERI10JSON00012e_\",\"t\":\"rpy\",\"d\":\"EOfEZAv5000PeSr90-zyRwpiZJou18pVQX7skKjLbde0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"r\":\"/watcher/BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq/add\",\"a\":{\"cid\":\"EGn97Kdjtp-rEc4p90zhvveUYnOnVFRPFpH2G_0BDMis\",\"oid\":\"EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z\"}}-CABBKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq0BC3MBmkTasSBojdkA65jIjSfLRaQeRILwBUCZQJm_OOQc_4FBRWNC3-h0ViV4r-wj4hAOYoZ-KgDwkgIHyy60UJ",
+          "raw_hex": "7b2276223a224b45524931304a534f4e3030303132655f222c2274223a22727079222c2264223a22454f66455a4176353030305065537239302d7a79527770695a4a6f7531387056515837736b4b6a4c62646530222c226474223a22323032312d30312d30315430303a30303a30302e3030303030302b30303a3030222c2272223a222f776174636865722f424b7a6244696c3050777a4c686f62516f51544c6c754261767637425534646c35316c59616666636a456d712f616464222c2261223a7b22636964223a2245476e39374b646a74702d724563347039307a6876766555596e4f6e5646525046704832475f3042444d6973222c226f6964223a2245426b794276634c734e5179764c3773714e736750663964716a7231486e6a5278777173783532637455355a227d7d2d434142424b7a6244696c3050777a4c686f62516f51544c6c754261767637425534646c35316c59616666636a456d71304243334d426d6b54617353426f6a646b4136356a496a53664c5261516552494c774255435a514a6d5f4f4f51635f34464252574e43332d683056695634722d776a3468414f596f5a2d4b6744776b67494879793630554a",
+          "rust_outcome": "UnverifiedReply",
+          "keripy": {
+            "raised": "UnverifiedReplyError",
+            "message": "Unverified watcher add reply. {'v': 'KERI10JSON00012e_', 't': 'rpy', 'd': 'EOfEZAv5000PeSr90-zyRwpiZJou18pVQX7skKjLbde0', 'dt': '2021-01-01T00:00:00.000000+00:00', 'r': '/watcher/BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq/add', 'a': {'cid"
+          },
+          "after": {
+            "states": [
+              {
+                "identifier": "EGn97Kdjtp-rEc4p90zhvveUYnOnVFRPFpH2G_0BDMis",
+                "state_json": "{\"vn\":[1,0],\"i\":\"EGn97Kdjtp-rEc4p90zhvveUYnOnVFRPFpH2G_0BDMis\",\"s\":\"0\",\"p\":\"\",\"d\":\"EGn97Kdjtp-rEc4p90zhvveUYnOnVFRPFpH2G_0BDMis\",\"f\":\"0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"icp\",\"kt\":\"1\",\"k\":[\"DEOnLnFEAXYt9mtowm373yaCquyfJHTspGE-QkoPuv08\"],\"nt\":\"1\",\"n\":[\"ECTVYkqpI9mQ5gd4jOpOJcpU1OJN8ZPrV1NdKt_vNt_u\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EGn97Kdjtp-rEc4p90zhvveUYnOnVFRPFpH2G_0BDMis\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+                "events": [
+                  {
+                    "sequence_number": 0,
+                    "said": "EGn97Kdjtp-rEc4p90zhvveUYnOnVFRPFpH2G_0BDMis",
+                    "signatures": [
+                      "AACbkmzuOuWalrC0GvFhgPSln0QC9jMbmSHXO3hCRH0Y6C_6Z_Be0-Psn0EqgtVYo4jqVJAzfk36_3HqSQcDeO0A"
+                    ],
+                    "witness_signatures": [],
+                    "receipts": []
+                  }
+                ]
+              },
+              {
+                "identifier": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "state_json": null,
+                "events": []
+              }
+            ],
+            "escrowed_events": 0,
+            "waiting_receipts": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "registration_before_the_controller",
+      "note": "A registration arrives before the controller's inception; it waits in the reply escrow and is kept once the inception is accepted.",
+      "steps": [
+        {
+          "label": "start",
+          "raw": "{\"v\":\"KERI10JSON00012e_\",\"t\":\"rpy\",\"d\":\"EAK3ND5UpNtcFDKDEM54MJBX3ySS27N2QGd5zAI3wUWn\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"r\":\"/watcher/BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq/add\",\"a\":{\"cid\":\"ED8-jXBLdE1A_G6M5AnzM0uw_2h4yEaHnW7_kPnycbYb\",\"oid\":\"EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z\"}}-FABED8-jXBLdE1A_G6M5AnzM0uw_2h4yEaHnW7_kPnycbYb0AAAAAAAAAAAAAAAAAAAAAAAED8-jXBLdE1A_G6M5AnzM0uw_2h4yEaHnW7_kPnycbYb-AABAADgobZon2qtGcC04CNsU_IdZHrSLGS0KzDj-PNPcg6R0uGhOuT2mYYDW27H_QD6o_gtBZIxJeB6lhVogemoQGkB",
+          "raw_hex": "7b2276223a224b45524931304a534f4e3030303132655f222c2274223a22727079222c2264223a2245414b334e443555704e746346444b44454d35344d4a42583379535332374e32514764357a4149337755576e222c226474223a22323032312d30312d30315430303a30303a30302e3030303030302b30303a3030222c2272223a222f776174636865722f424b7a6244696c3050777a4c686f62516f51544c6c754261767637425534646c35316c59616666636a456d712f616464222c2261223a7b22636964223a224544382d6a58424c644531415f47364d35416e7a4d3075775f326834794561486e57375f6b506e7963625962222c226f6964223a2245426b794276634c734e5179764c3773714e736750663964716a7231486e6a5278777173783532637455355a227d7d2d4641424544382d6a58424c644531415f47364d35416e7a4d3075775f326834794561486e57375f6b506e79636259623041414141414141414141414141414141414141414141414544382d6a58424c644531415f47364d35416e7a4d3075775f326834794561486e57375f6b506e79636259622d414142414144676f625a6f6e3271744763433034434e73555f49645a4872534c4753304b7a446a2d504e5063673652307547684f7554326d595944573237485f5144366f5f6774425a49784a6542366c68566f67656d6f51476b42",
+          "rust_outcome": "Escrowed:UnverifiedReply",
+          "keripy": {
+            "raised": "UnverifiedReplyError",
+            "message": "Unverified watcher add reply. {'v': 'KERI10JSON00012e_', 't': 'rpy', 'd': 'EAK3ND5UpNtcFDKDEM54MJBX3ySS27N2QGd5zAI3wUWn', 'dt': '2021-01-01T00:00:00.000000+00:00', 'r': '/watcher/BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq/add', 'a': {'cid"
+          },
+          "after": {
+            "states": [
+              {
+                "identifier": "ED8-jXBLdE1A_G6M5AnzM0uw_2h4yEaHnW7_kPnycbYb",
+                "state_json": null,
+                "events": []
+              },
+              {
+                "identifier": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "state_json": null,
+                "events": []
+              }
+            ],
+            "escrowed_events": 0,
+            "waiting_receipts": 0,
+            "escrowed_replies": 1
+          }
+        },
+        {
+          "label": "controller_inception",
+          "raw": "{\"v\":\"KERI10JSON00012b_\",\"t\":\"icp\",\"d\":\"ED8-jXBLdE1A_G6M5AnzM0uw_2h4yEaHnW7_kPnycbYb\",\"i\":\"ED8-jXBLdE1A_G6M5AnzM0uw_2h4yEaHnW7_kPnycbYb\",\"s\":\"0\",\"kt\":\"1\",\"k\":[\"DCCCi_XFvcrLaEhjM2wgL7VZnaSL5VlmFXQhcHBb7Kn3\"],\"nt\":\"1\",\"n\":[\"EKOxWMMrCkuaiPtpBN6B_F5a9ocB79smvWm1yE62BkbC\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"a\":[]}-AABAAC-YLN_sQw2q4m7ndLOuuR1uUyc0av0WhmcKSP6n7rRQkNnmA1h-CglSxbeH-vA0uZWQFs30nFkJUn2BcFDya4B",
+          "raw_hex": "7b2276223a224b45524931304a534f4e3030303132625f222c2274223a22696370222c2264223a224544382d6a58424c644531415f47364d35416e7a4d3075775f326834794561486e57375f6b506e7963625962222c2269223a224544382d6a58424c644531415f47364d35416e7a4d3075775f326834794561486e57375f6b506e7963625962222c2273223a2230222c226b74223a2231222c226b223a5b2244434343695f58467663724c6145686a4d3277674c37565a6e61534c35566c6d4658516863484262374b6e33225d2c226e74223a2231222c226e223a5b22454b4f78574d4d72436b756169507470424e36425f463561396f63423739736d76576d3179453632426b6243225d2c226274223a2230222c2262223a5b5d2c2263223a5b5d2c2261223a5b5d7d2d4141424141432d594c4e5f7351773271346d376e644c4f75755231755579633061763057686d634b5350366e377252516b4e6e6d4131682d43676c53786265482d764130755a5751467333306e466b4a556e324263464479613442",
+          "rust_outcome": "Accepted",
+          "keripy": {
+            "raised": null
+          },
+          "after": {
+            "states": [
+              {
+                "identifier": "ED8-jXBLdE1A_G6M5AnzM0uw_2h4yEaHnW7_kPnycbYb",
+                "state_json": "{\"vn\":[1,0],\"i\":\"ED8-jXBLdE1A_G6M5AnzM0uw_2h4yEaHnW7_kPnycbYb\",\"s\":\"0\",\"p\":\"\",\"d\":\"ED8-jXBLdE1A_G6M5AnzM0uw_2h4yEaHnW7_kPnycbYb\",\"f\":\"0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"icp\",\"kt\":\"1\",\"k\":[\"DCCCi_XFvcrLaEhjM2wgL7VZnaSL5VlmFXQhcHBb7Kn3\"],\"nt\":\"1\",\"n\":[\"EKOxWMMrCkuaiPtpBN6B_F5a9ocB79smvWm1yE62BkbC\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"ED8-jXBLdE1A_G6M5AnzM0uw_2h4yEaHnW7_kPnycbYb\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+                "events": [
+                  {
+                    "sequence_number": 0,
+                    "said": "ED8-jXBLdE1A_G6M5AnzM0uw_2h4yEaHnW7_kPnycbYb",
+                    "signatures": [
+                      "AAC-YLN_sQw2q4m7ndLOuuR1uUyc0av0WhmcKSP6n7rRQkNnmA1h-CglSxbeH-vA0uZWQFs30nFkJUn2BcFDya4B"
+                    ],
+                    "witness_signatures": [],
+                    "receipts": []
+                  }
+                ]
+              },
+              {
+                "identifier": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "state_json": null,
+                "events": []
+              }
+            ],
+            "escrowed_events": 0,
+            "waiting_receipts": 0,
+            "observations": [
+              {
+                "controller": "ED8-jXBLdE1A_G6M5AnzM0uw_2h4yEaHnW7_kPnycbYb",
+                "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "observed": "EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z",
+                "enabled": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "observations_kept_apart",
+      "note": "Observations of two identifiers by one watcher, and of one identifier by two watchers, are kept apart.",
+      "steps": [
+        {
+          "label": "controller_inception",
+          "raw": "{\"v\":\"KERI10JSON00012b_\",\"t\":\"icp\",\"d\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"i\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"s\":\"0\",\"kt\":\"1\",\"k\":[\"DOkutgVP6bxoKhvPO3WfZas4pM-9gcTR8zQuTMnN7YsL\"],\"nt\":\"1\",\"n\":[\"EBFWHvklSOJlt5crkrKsXMuGxUPnOoPuKIXwlEiIYnWp\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"a\":[]}-AABAABBLr7pn02eaUEaF4AzW1EWw_7p7YfE9rvHnz-CQ-QOvSiOHYbEzLlgPr2LfKUb58exD4RhTf7JOaKMmf2YLAAL",
+          "raw_hex": "7b2276223a224b45524931304a534f4e3030303132625f222c2274223a22696370222c2264223a22454f73466d7870462d7745656943395536746e4a445a436470495145626b6452534b782d6f4e6f6134463444222c2269223a22454f73466d7870462d7745656943395536746e4a445a436470495145626b6452534b782d6f4e6f6134463444222c2273223a2230222c226b74223a2231222c226b223a5b22444f6b75746756503662786f4b6876504f3357665a617334704d2d3967635452387a5175544d6e4e3759734c225d2c226e74223a2231222c226e223a5b224542465748766b6c534f4a6c743563726b724b73584d75477855506e4f6f50754b4958776c456949596e5770225d2c226274223a2230222c2262223a5b5d2c2263223a5b5d2c2261223a5b5d7d2d414142414142424c7237706e303265615545614634417a57314557775f377037596645397276486e7a2d43512d514f7653694f485962457a4c6c675072324c664b556235386578443452685466374a4f614b4d6d6632594c41414c",
+          "rust_outcome": "Accepted",
+          "keripy": {
+            "raised": null
+          },
+          "after": {
+            "states": [
+              {
+                "identifier": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                "state_json": "{\"vn\":[1,0],\"i\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"s\":\"0\",\"p\":\"\",\"d\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"f\":\"0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"icp\",\"kt\":\"1\",\"k\":[\"DOkutgVP6bxoKhvPO3WfZas4pM-9gcTR8zQuTMnN7YsL\"],\"nt\":\"1\",\"n\":[\"EBFWHvklSOJlt5crkrKsXMuGxUPnOoPuKIXwlEiIYnWp\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+                "events": [
+                  {
+                    "sequence_number": 0,
+                    "said": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                    "signatures": [
+                      "AABBLr7pn02eaUEaF4AzW1EWw_7p7YfE9rvHnz-CQ-QOvSiOHYbEzLlgPr2LfKUb58exD4RhTf7JOaKMmf2YLAAL"
+                    ],
+                    "witness_signatures": [],
+                    "receipts": []
+                  }
+                ]
+              },
+              {
+                "identifier": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "state_json": null,
+                "events": []
+              },
+              {
+                "identifier": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+                "state_json": null,
+                "events": []
+              }
+            ],
+            "escrowed_events": 0,
+            "waiting_receipts": 0
+          }
+        },
+        {
+          "label": "first_observed",
+          "raw": "{\"v\":\"KERI10JSON00012e_\",\"t\":\"rpy\",\"d\":\"EBoI504HZk5WPTh9rVAcfjt3h-LQXRijBAEqz8fCzRE-\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"r\":\"/watcher/BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq/add\",\"a\":{\"cid\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"oid\":\"EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z\"}}-FABEOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D0AAAAAAAAAAAAAAAAAAAAAAAEOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D-AABAADJ1ryk2ADRJwMnS3vnwJb8xf-NDElKoj6glp76XpCNJg6UxvwKh1gCW88JGoqqcoZh9c64pDFF9nR2vx99E7UP",
+          "raw_hex": "7b2276223a224b45524931304a534f4e3030303132655f222c2274223a22727079222c2264223a2245426f49353034485a6b35575054683972564163666a7433682d4c515852696a424145717a3866437a52452d222c226474223a22323032312d30312d30315430303a30303a30302e3030303030302b30303a3030222c2272223a222f776174636865722f424b7a6244696c3050777a4c686f62516f51544c6c754261767637425534646c35316c59616666636a456d712f616464222c2261223a7b22636964223a22454f73466d7870462d7745656943395536746e4a445a436470495145626b6452534b782d6f4e6f6134463444222c226f6964223a2245426b794276634c734e5179764c3773714e736750663964716a7231486e6a5278777173783532637455355a227d7d2d464142454f73466d7870462d7745656943395536746e4a445a436470495145626b6452534b782d6f4e6f6134463444304141414141414141414141414141414141414141414141454f73466d7870462d7745656943395536746e4a445a436470495145626b6452534b782d6f4e6f61344634442d4141424141444a3172796b324144524a774d6e5333766e774a623878662d4e44456c4b6f6a36676c7037365870434e4a6736557876774b683167435738384a476f7171636f5a683963363470444646396e52327678393945375550",
+          "rust_outcome": "ObservationAccepted",
+          "keripy": {
+            "raised": null
+          },
+          "after": {
+            "states": [
+              {
+                "identifier": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                "state_json": "{\"vn\":[1,0],\"i\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"s\":\"0\",\"p\":\"\",\"d\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"f\":\"0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"icp\",\"kt\":\"1\",\"k\":[\"DOkutgVP6bxoKhvPO3WfZas4pM-9gcTR8zQuTMnN7YsL\"],\"nt\":\"1\",\"n\":[\"EBFWHvklSOJlt5crkrKsXMuGxUPnOoPuKIXwlEiIYnWp\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+                "events": [
+                  {
+                    "sequence_number": 0,
+                    "said": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                    "signatures": [
+                      "AABBLr7pn02eaUEaF4AzW1EWw_7p7YfE9rvHnz-CQ-QOvSiOHYbEzLlgPr2LfKUb58exD4RhTf7JOaKMmf2YLAAL"
+                    ],
+                    "witness_signatures": [],
+                    "receipts": []
+                  }
+                ]
+              },
+              {
+                "identifier": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "state_json": null,
+                "events": []
+              },
+              {
+                "identifier": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+                "state_json": null,
+                "events": []
+              }
+            ],
+            "escrowed_events": 0,
+            "waiting_receipts": 0,
+            "observations": [
+              {
+                "controller": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "observed": "EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z",
+                "enabled": true
+              }
+            ]
+          }
+        },
+        {
+          "label": "second_observed",
+          "raw": "{\"v\":\"KERI10JSON00012e_\",\"t\":\"rpy\",\"d\":\"EHlBE79U91Or4Z3tPDqolrtFPTBG-Q3eRah3sCQihKjz\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"r\":\"/watcher/BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq/add\",\"a\":{\"cid\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"oid\":\"EM0Md4ICMZ7git2203eDdvkO_6SV1gBisUDu-JCJlqRz\"}}-FABEOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D0AAAAAAAAAAAAAAAAAAAAAAAEOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D-AABAAAa3fCnQVC0Rj61mBgRxTnqmSc_7AeoupMWg2jwxw0r5p842-idjfZB68c66jOsaoJF46jPyNN10tU_pj4thrUI",
+          "raw_hex": "7b2276223a224b45524931304a534f4e3030303132655f222c2274223a22727079222c2264223a2245486c424537395539314f72345a33745044716f6c727446505442472d5133655261683373435169684b6a7a222c226474223a22323032312d30312d30315430303a30303a30302e3030303030302b30303a3030222c2272223a222f776174636865722f424b7a6244696c3050777a4c686f62516f51544c6c754261767637425534646c35316c59616666636a456d712f616464222c2261223a7b22636964223a22454f73466d7870462d7745656943395536746e4a445a436470495145626b6452534b782d6f4e6f6134463444222c226f6964223a22454d304d643449434d5a3767697432323033654464766b4f5f36535631674269735544752d4a434a6c71527a227d7d2d464142454f73466d7870462d7745656943395536746e4a445a436470495145626b6452534b782d6f4e6f6134463444304141414141414141414141414141414141414141414141454f73466d7870462d7745656943395536746e4a445a436470495145626b6452534b782d6f4e6f61344634442d414142414141613366436e51564330526a36316d42675278546e716d53635f3741656f75704d5767326a777877307235703834322d69646a665a4236386336366a4f73616f4a4634366a50794e4e313074555f706a347468725549",
+          "rust_outcome": "ObservationAccepted",
+          "keripy": {
+            "raised": null
+          },
+          "after": {
+            "states": [
+              {
+                "identifier": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                "state_json": "{\"vn\":[1,0],\"i\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"s\":\"0\",\"p\":\"\",\"d\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"f\":\"0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"icp\",\"kt\":\"1\",\"k\":[\"DOkutgVP6bxoKhvPO3WfZas4pM-9gcTR8zQuTMnN7YsL\"],\"nt\":\"1\",\"n\":[\"EBFWHvklSOJlt5crkrKsXMuGxUPnOoPuKIXwlEiIYnWp\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+                "events": [
+                  {
+                    "sequence_number": 0,
+                    "said": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                    "signatures": [
+                      "AABBLr7pn02eaUEaF4AzW1EWw_7p7YfE9rvHnz-CQ-QOvSiOHYbEzLlgPr2LfKUb58exD4RhTf7JOaKMmf2YLAAL"
+                    ],
+                    "witness_signatures": [],
+                    "receipts": []
+                  }
+                ]
+              },
+              {
+                "identifier": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "state_json": null,
+                "events": []
+              },
+              {
+                "identifier": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+                "state_json": null,
+                "events": []
+              }
+            ],
+            "escrowed_events": 0,
+            "waiting_receipts": 0,
+            "observations": [
+              {
+                "controller": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "observed": "EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z",
+                "enabled": true
+              },
+              {
+                "controller": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "observed": "EM0Md4ICMZ7git2203eDdvkO_6SV1gBisUDu-JCJlqRz",
+                "enabled": true
+              }
+            ]
+          }
+        },
+        {
+          "label": "other_watcher",
+          "raw": "{\"v\":\"KERI10JSON00012e_\",\"t\":\"rpy\",\"d\":\"EGuTnHok7IbtkPHkamhkpUAoIi2T9zs_SItJHcw5Z1Tb\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"r\":\"/watcher/BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe/add\",\"a\":{\"cid\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"oid\":\"EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z\"}}-FABEOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D0AAAAAAAAAAAAAAAAAAAAAAAEOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D-AABAAD_zU3whotwEBdAWDyjqRrD8--0owworDYDyN0kmXf5CXceZBRe7IhVGryUJJQah6oARsWY8GKNBOwM8IquCYoC",
+          "raw_hex": "7b2276223a224b45524931304a534f4e3030303132655f222c2274223a22727079222c2264223a22454775546e486f6b374962746b50486b616d686b7055416f49693254397a735f5349744a486377355a315462222c226474223a22323032312d30312d30315430303a30303a30302e3030303030302b30303a3030222c2272223a222f776174636865722f42454d45615f35416b725070535a5471326858637767324b7167653257503035564f754f4476754c334b58652f616464222c2261223a7b22636964223a22454f73466d7870462d7745656943395536746e4a445a436470495145626b6452534b782d6f4e6f6134463444222c226f6964223a2245426b794276634c734e5179764c3773714e736750663964716a7231486e6a5278777173783532637455355a227d7d2d464142454f73466d7870462d7745656943395536746e4a445a436470495145626b6452534b782d6f4e6f6134463444304141414141414141414141414141414141414141414141454f73466d7870462d7745656943395536746e4a445a436470495145626b6452534b782d6f4e6f61344634442d4141424141445f7a553377686f7477454264415744796a71527244382d2d306f77776f72445944794e306b6d586635435863655a42526537496856477279554a4a516168366f415273575938474b4e424f774d3849717543596f43",
+          "rust_outcome": "ObservationAccepted",
+          "keripy": {
+            "raised": null
+          },
+          "after": {
+            "states": [
+              {
+                "identifier": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                "state_json": "{\"vn\":[1,0],\"i\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"s\":\"0\",\"p\":\"\",\"d\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"f\":\"0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"icp\",\"kt\":\"1\",\"k\":[\"DOkutgVP6bxoKhvPO3WfZas4pM-9gcTR8zQuTMnN7YsL\"],\"nt\":\"1\",\"n\":[\"EBFWHvklSOJlt5crkrKsXMuGxUPnOoPuKIXwlEiIYnWp\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+                "events": [
+                  {
+                    "sequence_number": 0,
+                    "said": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                    "signatures": [
+                      "AABBLr7pn02eaUEaF4AzW1EWw_7p7YfE9rvHnz-CQ-QOvSiOHYbEzLlgPr2LfKUb58exD4RhTf7JOaKMmf2YLAAL"
+                    ],
+                    "witness_signatures": [],
+                    "receipts": []
+                  }
+                ]
+              },
+              {
+                "identifier": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "state_json": null,
+                "events": []
+              },
+              {
+                "identifier": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+                "state_json": null,
+                "events": []
+              }
+            ],
+            "escrowed_events": 0,
+            "waiting_receipts": 0,
+            "observations": [
+              {
+                "controller": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+                "observed": "EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z",
+                "enabled": true
+              },
+              {
+                "controller": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "observed": "EBkyBvcLsNQyvL7sqNsgPf9dqjr1HnjRxwqsx52ctU5Z",
+                "enabled": true
+              },
+              {
+                "controller": "EOsFmxpF-wEeiC9U6tnJDZCdpIQEbkdRSKx-oNoa4F4D",
+                "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+                "observed": "EM0Md4ICMZ7git2203eDdvkO_6SV1gBisUDu-JCJlqRz",
+                "enabled": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

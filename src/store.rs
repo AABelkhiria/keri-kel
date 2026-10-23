@@ -8,8 +8,9 @@
 //!   order they entered their escrow;
 //! - [`ReceiptStore`]: receipt signatures waiting for the events they name;
 //! - [`ReplyStore`]: the replies kept, key state notices per identifier and reporting source, end
-//!   roles per controller, role and endpoint, locations per endpoint and scheme, and replies
-//!   waiting for their signer's establishment event or more signatures.
+//!   roles per controller, role and endpoint, locations per endpoint and scheme, watcher
+//!   observations per controller, watcher and observed identifier with the OOBIs they queued, and
+//!   replies waiting for their signer's establishment event or more signatures.
 //!
 //! [`Store`] is all four together, which is what a `Kevery` takes. [`MemoryStore`] keeps
 //! everything in memory and is what [`Kevery::new`](crate::Kevery::new) uses.
@@ -20,7 +21,7 @@
 //! message; a store that needs a message's writes to land together has to group them itself.
 
 use core::fmt;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 
 use keri_protocol::event::timestamp::Timestamp;
@@ -30,6 +31,7 @@ use crate::error::Escrow;
 use crate::kever::Kever;
 use crate::kevery::{EscrowedEvent, LoggedEvent, WaitingReceipt};
 use crate::notice::KeyStateNotice;
+use crate::observation::ObservationRecord;
 use crate::reply::EscrowedReply;
 
 /// Why a store could not read or write.
@@ -203,10 +205,59 @@ pub trait ReceiptStore {
     fn expire_receipts(&mut self, cutoff: &Timestamp) -> Result<usize, StoreError>;
 }
 
-/// Replies kept and waiting: key state notices, end roles and locations, keripy's `knas`, `ksns`,
-/// `kdts`, `eans`, `ends`, `lans`, `locs`, `rpys`, `sdts`, `ssgs` and `rpes` tables. Identifiers,
-/// sources and SAIDs are qb64 text; roles and schemes are their names.
+/// Replies kept and waiting: key state notices, end roles, locations and watcher observations,
+/// keripy's `knas`, `ksns`, `kdts`, `eans`, `ends`, `lans`, `locs`, `wwas`, `obvs`, `oobis`, `rpys`,
+/// `sdts`, `ssgs` and `rpes` tables. Identifiers, sources and SAIDs are qb64 text; roles and
+/// schemes are their names.
 pub trait ReplyStore {
+    /// Returns the observation kept for `controller`, `watcher` and `observed`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be read.
+    fn observation(
+        &self,
+        controller: &str,
+        watcher: &str,
+        observed: &str,
+    ) -> Result<Option<ObservationRecord>, StoreError>;
+
+    /// Returns every observation kept for `watcher`, with its controller and observed identifier,
+    /// in any order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be read.
+    fn observations(&self, watcher: &str) -> Result<Vec<(String, String, ObservationRecord)>, StoreError>;
+
+    /// Keeps an observation, replacing any earlier one for the same controller, watcher and
+    /// observed identifier.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be written.
+    fn put_observation(
+        &mut self,
+        controller: &str,
+        watcher: &str,
+        observed: &str,
+        record: ObservationRecord,
+    ) -> Result<(), StoreError>;
+
+    /// Queues an OOBI for resolution, once however often it is queued.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be written.
+    fn hold_oobi(&mut self, url: &str) -> Result<(), StoreError>;
+
+    /// Returns the queued OOBIs, in any order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be read.
+    fn oobis(&self) -> Result<Vec<String>, StoreError>;
+
     /// Returns the end role kept for `controller`, `role` and `endpoint`.
     ///
     /// # Errors
@@ -340,6 +391,8 @@ pub struct MemoryStore {
     notices: BTreeMap<(String, String), KeyStateNotice>,
     end_roles: BTreeMap<(String, String, String), EndRoleRecord>,
     locations: BTreeMap<(String, String), LocationRecord>,
+    observations: BTreeMap<(String, String, String), ObservationRecord>,
+    oobis: BTreeSet<String>,
     replies: BTreeMap<String, EscrowedReply>,
 }
 
@@ -479,6 +532,48 @@ impl ReceiptStore for MemoryStore {
 }
 
 impl ReplyStore for MemoryStore {
+    fn observation(
+        &self,
+        controller: &str,
+        watcher: &str,
+        observed: &str,
+    ) -> Result<Option<ObservationRecord>, StoreError> {
+        Ok(self
+            .observations
+            .get(&(controller.to_owned(), watcher.to_owned(), observed.to_owned()))
+            .cloned())
+    }
+
+    fn observations(&self, watcher: &str) -> Result<Vec<(String, String, ObservationRecord)>, StoreError> {
+        Ok(self
+            .observations
+            .iter()
+            .filter(|((_, observing, _), _)| observing == watcher)
+            .map(|((controller, _, observed), record)| (controller.clone(), observed.clone(), record.clone()))
+            .collect())
+    }
+
+    fn put_observation(
+        &mut self,
+        controller: &str,
+        watcher: &str,
+        observed: &str,
+        record: ObservationRecord,
+    ) -> Result<(), StoreError> {
+        self.observations
+            .insert((controller.to_owned(), watcher.to_owned(), observed.to_owned()), record);
+        Ok(())
+    }
+
+    fn hold_oobi(&mut self, url: &str) -> Result<(), StoreError> {
+        self.oobis.insert(url.to_owned());
+        Ok(())
+    }
+
+    fn oobis(&self) -> Result<Vec<String>, StoreError> {
+        Ok(self.oobis.iter().cloned().collect())
+    }
+
     fn end_role(&self, controller: &str, role: &str, endpoint: &str) -> Result<Option<EndRoleRecord>, StoreError> {
         Ok(self
             .end_roles

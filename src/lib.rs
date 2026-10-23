@@ -28,7 +28,8 @@
 //! later, under keripy's rules as its code applies them.
 //!
 //! [`reply`] verifies replies, signed statements that replace earlier ones; [`endpoint`] keeps end
-//! roles and locations, which say where an identifier is served; [`notice`] keeps key state
+//! roles and locations, which say where an identifier is served; [`observation`] keeps watcher
+//! registrations; [`notice`] keeps key state
 //! notices, `/ksn` replies reporting an identifier's state, from the sources a [`NoticeTrust`]
 //! allows; and [`adjudication`] decides from what an identifier's
 //! watchers report whether the local state is consistent, lagging, behind them, or contradicted.
@@ -46,6 +47,7 @@ pub mod event;
 pub mod kever;
 pub mod kevery;
 pub mod notice;
+pub mod observation;
 pub mod reply;
 pub mod store;
 
@@ -56,5 +58,6 @@ pub use event::{EventSeal, KeyEventFields};
 pub use kever::Kever;
 pub use kevery::{EscrowedEvent, Kevery, LoggedEvent, Processed, ValidatorReceipt, WaitingReceipt, WaitingSignature};
 pub use notice::{KeyStateNotice, NoticeTrust};
+pub use observation::ObservationRecord;
 pub use reply::{EscrowedReply, KeptReply, ReplySignatures};
 pub use store::{EscrowStore, KelStore, MemoryStore, ReceiptStore, ReplyStore, Store, StoreError};

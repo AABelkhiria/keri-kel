@@ -215,6 +215,15 @@ class Scenario:
                      for (eid, scheme), record in self.db.locs.getItemIter()]
         if locations:
             snapshot["locations"] = sorted(locations, key=lambda location: (location["endpoint"], location["scheme"]))
+        # Watcher observations keripy accepted, and the OOBIs they queued for resolution.
+        observations = [{"controller": cid, "watcher": aid, "observed": oid, "enabled": record.enabled}
+                        for (cid, aid, oid), record in self.db.obvs.getItemIter()]
+        if observations:
+            snapshot["observations"] = sorted(observations, key=lambda observation: (
+                observation["controller"], observation["watcher"], observation["observed"]))
+        oobis = sorted(url for (url,), _ in self.db.oobis.getItemIter())
+        if oobis:
+            snapshot["oobis"] = oobis
         replies = sum(1 for _ in self.db.rpes.getItemIter())
         if replies:
             snapshot["escrowed_replies"] = replies

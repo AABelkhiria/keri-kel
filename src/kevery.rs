@@ -98,6 +98,8 @@ pub enum Processed {
     EndRoleAccepted,
     /// The location was kept, replacing any earlier one for the same scheme.
     LocationAccepted,
+    /// The watcher registration was kept, replacing any earlier one for the same observation.
+    ObservationAccepted,
     /// The message was kept for later, for the reason given.
     Escrowed(Escrow),
 }
@@ -899,7 +901,8 @@ impl<S: Store> Kevery<S> {
                     | Processed::Receipted
                     | Processed::KeyStateAccepted
                     | Processed::EndRoleAccepted
-                    | Processed::LocationAccepted,
+                    | Processed::LocationAccepted
+                    | Processed::ObservationAccepted,
                 ) => {}
                 Err(error @ KelError::Store { .. }) => return Err(error),
                 Err(_) => {

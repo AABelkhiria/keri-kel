@@ -37,6 +37,9 @@
 - End roles and locations: `Kevery` keeps `/end/role/add` and `/end/role/cut` replies signed by
   the controller and `/loc/scheme` replies signed by the endpoint, the latest of each, verified
   against keripy.
+- Watcher registrations: `Kevery` keeps `/watcher/{watcher}/add` and `/cut` replies signed by
+  the controller, the latest per controller, watcher and observed identifier, and queues the OOBIs
+  they give, verified against keripy.
 - Adjudication: `adjudicate` and `Kevery::adjudicate` decide, from what an identifier's watchers
   last reported, whether the local state is consistent, lagging, due an update or contradicted,
   verified against keripy's `Adjudicator`.
