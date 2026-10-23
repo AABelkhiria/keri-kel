@@ -132,13 +132,13 @@ fn texts<T>(items: &[T], text: impl Fn(&T) -> Result<String, Box<dyn Error>>) ->
 /// What the port holds for one identifier, in the fixtures' vocabulary.
 pub(crate) fn held(kevery: &Kevery, identifier: &str) -> Result<(Option<String>, Vec<EventSnapshot>), Box<dyn Error>> {
     let prefix = IdentifierPrefix::from_qb64(identifier)?;
-    let Some(kever) = kevery.kever(&prefix) else {
+    let Some(kever) = kevery.kever(&prefix)? else {
         return Ok((None, Vec::new()));
     };
     let state = String::from_utf8(kever.state()?.to_sad()?.to_json_bytes()?)?;
     let mut events = Vec::new();
     for sequence_number in 0..=kever.sequence_number() {
-        let Some(logged) = kevery.logged(&prefix, sequence_number) else {
+        let Some(logged) = kevery.logged(&prefix, sequence_number)? else {
             continue;
         };
         let indexed = |signature: &IndexedSignature| -> Result<String, Box<dyn Error>> { Ok(signature.qb64()?) };
@@ -174,12 +174,12 @@ pub(crate) fn held(kevery: &Kevery, identifier: &str) -> Result<(Option<String>,
 
 pub(crate) fn compare(kevery: &Kevery, expected: &Snapshot, context: &str) -> Result<(), Box<dyn Error>> {
     assert_eq!(
-        kevery.escrowed_events(),
+        kevery.escrowed_events()?,
         expected.escrowed_events,
         "{context}: escrowed events"
     );
     assert_eq!(
-        kevery.waiting_receipts(),
+        kevery.waiting_receipts()?,
         expected.waiting_receipts,
         "{context}: waiting receipts"
     );
@@ -189,7 +189,7 @@ pub(crate) fn compare(kevery: &Kevery, expected: &Snapshot, context: &str) -> Re
         assert_eq!(events, identifier.events, "{context}: accepted events");
         let prefix = IdentifierPrefix::from_qb64(&identifier.identifier)?;
         let mut superseded: Vec<String> = kevery
-            .superseded(&prefix)
+            .superseded(&prefix)?
             .iter()
             .map(|logged| logged.event().said().unwrap_or_default().to_owned())
             .collect();
@@ -209,13 +209,18 @@ pub(crate) fn offer(
     assert_eq!(raw, step.raw.as_bytes(), "step {} raw and raw_hex disagree", step.label);
     let message = Message::from_bytes(&raw)?;
     let result = kevery.process(&message, now);
-    kevery.process_escrows(now);
+    kevery.process_escrows(now)?;
     Ok(result)
 }
 
 /// Replays every scenario from an empty set of logs, checking each step's outcome and what is
-/// held after it, and returns how many steps were replayed.
-pub(crate) fn replay(scenarios: &[Scenario], now: &Timestamp) -> Result<usize, Box<dyn Error>> {
+/// held after it, and returns how many steps were replayed. `between` runs after each step, before
+/// the check: it may hand the logs on, or return them as they are.
+pub(crate) fn replay(
+    scenarios: &[Scenario],
+    now: &Timestamp,
+    between: impl Fn(Kevery) -> Kevery,
+) -> Result<usize, Box<dyn Error>> {
     let mut steps = 0;
     for scenario in scenarios {
         assert_ne!(scenario.note, "");
@@ -231,6 +236,7 @@ pub(crate) fn replay(scenarios: &[Scenario], now: &Timestamp) -> Result<usize, B
                 step.keripy.raised,
                 step.keripy.message
             );
+            kevery = between(kevery);
             compare(&kevery, &step.after, &context)?;
         }
     }

@@ -53,7 +53,7 @@ fn every_scenario_holds_what_keripy_holds() -> Result<(), Box<dyn Error>> {
     let fixture = fixture()?;
     let now = Timestamp::parse(&fixture.now)?;
     assert_eq!(fixture.scenarios.len(), 6);
-    assert_eq!(replay(&fixture.scenarios, &now)?, 42);
+    assert_eq!(replay(&fixture.scenarios, &now, |kevery| kevery)?, 42);
     Ok(())
 }
 
@@ -79,9 +79,9 @@ fn an_earlier_interaction_is_refused_only_on_retry() -> Result<(), Box<dyn Error
         kevery.process(&message, &now)?,
         Processed::Escrowed(Escrow::PartiallyDelegated)
     );
-    assert_eq!(kevery.escrowed_events(), 1);
-    assert_eq!(kevery.process_escrows(&now), 0);
-    assert_eq!(kevery.escrowed_events(), 0, "the retry drops it");
+    assert_eq!(kevery.escrowed_events()?, 1);
+    assert_eq!(kevery.process_escrows(&now)?, 0);
+    assert_eq!(kevery.escrowed_events()?, 0, "the retry drops it");
     assert!(KelError::SupersededWithoutDelegation.escrow().is_none());
     Ok(())
 }

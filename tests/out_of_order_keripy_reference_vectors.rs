@@ -53,7 +53,7 @@ fn every_scenario_holds_what_keripy_holds() -> Result<(), Box<dyn Error>> {
     let fixture = fixture()?;
     let now = Timestamp::parse(&fixture.now)?;
     assert_eq!(fixture.scenarios.len(), 6);
-    assert_eq!(replay(&fixture.scenarios, &now)?, 25);
+    assert_eq!(replay(&fixture.scenarios, &now, |kevery| kevery)?, 25);
     Ok(())
 }
 
@@ -76,7 +76,7 @@ fn one_pass_accepts_a_log_offered_backwards() -> Result<(), Box<dyn Error>> {
     }
     let message = Message::from_bytes(&decode_hex(&inception.raw_hex)?)?;
     assert_eq!(kevery.process(&message, &now)?, Processed::Accepted);
-    assert_eq!(kevery.process_escrows(&now), early.len());
-    assert_eq!(kevery.escrowed_events(), 0);
+    assert_eq!(kevery.process_escrows(&now)?, early.len());
+    assert_eq!(kevery.escrowed_events()?, 0);
     Ok(())
 }

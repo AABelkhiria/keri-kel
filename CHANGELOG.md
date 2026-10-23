@@ -30,3 +30,6 @@
   attached to events, against the validator's named establishment event, stores them as
   `ValidatorReceipt`s, and escrows them until the validator's event is accepted, verified against
   keripy.
+- Store traits: `Kevery` keeps its logs, escrows and waiting receipts behind `KelStore`,
+  `EscrowStore` and `ReceiptStore`, with `MemoryStore` as the default; a failing store is reported
+  as `KelError::Store`.

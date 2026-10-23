@@ -1,10 +1,18 @@
 #![no_main]
 #![forbid(unsafe_code)]
 
-use keri_kel::Kevery;
+use keri_kel::{KelError, Kevery};
 use keri_protocol::event::timestamp::Timestamp;
 use keri_protocol::stream::parse_stream;
 use libfuzzer_sys::fuzz_target;
+
+/// The memory store never fails, so a store error is a bug.
+fn held<T>(result: Result<T, KelError>) -> T {
+    match result {
+        Ok(value) => value,
+        Err(error) => panic!("the memory store failed: {error}"),
+    }
+}
 
 fuzz_target!(|data: &[u8]| {
     // Any stream of events and receipts, in any order: nothing panics, every accepted log can write
@@ -18,24 +26,26 @@ fuzz_target!(|data: &[u8]| {
     };
     let mut kevery = Kevery::new();
     for message in &messages {
-        let _ = kevery.process(message, &now);
-        kevery.process_escrows(&now);
+        if let Err(KelError::Store { .. }) = kevery.process(message, &now) {
+            panic!("the memory store failed");
+        }
+        held(kevery.process_escrows(&now));
     }
-    let escrowed = kevery.escrowed_events();
-    let waiting = kevery.waiting_receipts();
+    let escrowed = held(kevery.escrowed_events());
+    let waiting = held(kevery.waiting_receipts());
     assert_eq!(
-        kevery.process_escrows(&now),
+        held(kevery.process_escrows(&now)),
         0,
         "a second escrow pass accepted something"
     );
-    assert_eq!(kevery.escrowed_events(), escrowed);
-    assert!(kevery.waiting_receipts() <= waiting);
+    assert_eq!(held(kevery.escrowed_events()), escrowed);
+    assert!(held(kevery.waiting_receipts()) <= waiting);
     for message in &messages {
         if let Ok(event) = keri_kel::KeyEventFields::read(message.event()) {
-            if let Some(kever) = kevery.kever(event.identifier()) {
+            if let Some(kever) = held(kevery.kever(event.identifier())) {
                 assert!(kever.state().is_ok(), "an accepted log could not write its state");
                 if kever.delegator().is_some() {
-                    let inception = kevery.logged(event.identifier(), 0);
+                    let inception = held(kevery.logged(event.identifier(), 0));
                     assert!(
                         inception.is_some_and(|logged| logged.delegation().is_some()),
                         "a delegated inception was accepted without its delegating event"

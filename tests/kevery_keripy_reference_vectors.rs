@@ -61,7 +61,7 @@ fn every_scenario_holds_what_keripy_holds() -> Result<(), Box<dyn Error>> {
     let fixture = fixture()?;
     let now = Timestamp::parse(&fixture.now)?;
     assert_eq!(fixture.scenarios.len(), 4);
-    assert_eq!(replay(&fixture.scenarios, &now)?, 15);
+    assert_eq!(replay(&fixture.scenarios, &now, |kevery| kevery)?, 15);
     Ok(())
 }
 
@@ -118,12 +118,16 @@ fn escrowed_items_expire_before_a_cutoff() -> Result<(), Box<dyn Error>> {
     let step = scenario.steps.first().ok_or("no step")?;
     let mut kevery = Kevery::new();
     offer(&mut kevery, step, &now)??;
-    assert_eq!(kevery.escrowed_events(), 1);
-    assert_eq!(kevery.expire_escrows(&now), 0, "nothing escrowed at the cutoff expires");
+    assert_eq!(kevery.escrowed_events()?, 1);
     assert_eq!(
-        kevery.expire_escrows(&Timestamp::parse("2021-01-01T00:00:00.000001+00:00")?),
+        kevery.expire_escrows(&now)?,
+        0,
+        "nothing escrowed at the cutoff expires"
+    );
+    assert_eq!(
+        kevery.expire_escrows(&Timestamp::parse("2021-01-01T00:00:00.000001+00:00")?)?,
         1
     );
-    assert_eq!(kevery.escrowed_events(), 0);
+    assert_eq!(kevery.escrowed_events()?, 0);
     Ok(())
 }

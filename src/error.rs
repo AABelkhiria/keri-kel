@@ -10,6 +10,8 @@ use keri_protocol::said::SaidError;
 use keri_protocol::serialization::SerializationError;
 use keri_protocol::threshold::ThresholdError;
 
+use crate::store::StoreError;
+
 /// Why an event that is not accepted yet might be accepted later.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Escrow {
@@ -181,6 +183,11 @@ pub enum KelError {
         /// Underlying CESR failure.
         source: Box<CesrError>,
     },
+    /// The store could not read or write.
+    Store {
+        /// Underlying store failure.
+        source: Box<StoreError>,
+    },
     /// The key state could not be written.
     Event {
         /// Underlying event failure.
@@ -230,6 +237,12 @@ impl KelError {
 
     pub(crate) fn cesr(source: CesrError) -> Self {
         Self::Cesr {
+            source: Box::new(source),
+        }
+    }
+
+    pub(crate) fn store(source: StoreError) -> Self {
+        Self::Store {
             source: Box::new(source),
         }
     }
@@ -315,6 +328,7 @@ impl fmt::Display for KelError {
             Self::Prefix { .. } => formatter.write_str("identifier prefix is invalid"),
             Self::Threshold { .. } => formatter.write_str("threshold is invalid"),
             Self::Cesr { .. } => formatter.write_str("CESR material is invalid"),
+            Self::Store { .. } => formatter.write_str("store could not read or write"),
             Self::Event { .. } => formatter.write_str("key state could not be written"),
         }
     }
@@ -328,6 +342,7 @@ impl Error for KelError {
             Self::Prefix { source } => Some(source.as_ref()),
             Self::Threshold { source } => Some(source.as_ref()),
             Self::Cesr { source } => Some(source.as_ref()),
+            Self::Store { source } => Some(source.as_ref()),
             Self::Event { source } => Some(source.as_ref()),
             _ => None,
         }

@@ -51,6 +51,6 @@ fn every_scenario_holds_what_keripy_holds() -> Result<(), Box<dyn Error>> {
     let fixture = fixture()?;
     let now = Timestamp::parse(&fixture.now)?;
     assert_eq!(fixture.scenarios.len(), 6);
-    assert_eq!(replay(&fixture.scenarios, &now)?, 27);
+    assert_eq!(replay(&fixture.scenarios, &now, |kevery| kevery)?, 27);
     Ok(())
 }

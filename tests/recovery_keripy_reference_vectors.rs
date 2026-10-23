@@ -53,7 +53,7 @@ fn every_scenario_holds_what_keripy_holds() -> Result<(), Box<dyn Error>> {
     let fixture = fixture()?;
     let now = Timestamp::parse(&fixture.now)?;
     assert_eq!(fixture.scenarios.len(), 5);
-    assert_eq!(replay(&fixture.scenarios, &now)?, 21);
+    assert_eq!(replay(&fixture.scenarios, &now, |kevery| kevery)?, 21);
     Ok(())
 }
 
@@ -81,11 +81,8 @@ fn a_recovery_keeps_what_it_supersedes_in_order() -> Result<(), Box<dyn Error>> 
             .and_then(|message| message.event().identifier_prefix())
             .ok_or("no identifier")?,
     )?;
-    let superseded: Vec<Option<&str>> = kevery
-        .superseded(&identifier)
-        .iter()
-        .map(|logged| logged.event().said())
-        .collect();
+    let superseded = kevery.superseded(&identifier)?;
+    let superseded: Vec<Option<&str>> = superseded.iter().map(|logged| logged.event().said()).collect();
     let expected: Vec<Option<&str>> = offered
         .get(2..4)
         .ok_or("too few messages")?
@@ -93,8 +90,8 @@ fn a_recovery_keeps_what_it_supersedes_in_order() -> Result<(), Box<dyn Error>> 
         .map(|message| message.event().said())
         .collect();
     assert_eq!(superseded, expected, "the second and third interactions, in order");
-    let kever = kevery.kever(&identifier).ok_or("no key state")?;
+    let kever = kevery.kever(&identifier)?.ok_or("no key state")?;
     assert_eq!(kever.sequence_number(), 2);
-    assert!(kevery.logged(&identifier, 3).is_none());
+    assert!(kevery.logged(&identifier, 3)?.is_none());
     Ok(())
 }

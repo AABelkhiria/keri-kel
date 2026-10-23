@@ -79,7 +79,7 @@ fn every_scenario_holds_what_keripy_holds() -> Result<(), Box<dyn Error>> {
     let fixture = fixture()?;
     let now = Timestamp::parse(&fixture.now)?;
     assert_eq!(fixture.scenarios.len(), 7);
-    assert_eq!(replay(&fixture.scenarios, &now)?, 27);
+    assert_eq!(replay(&fixture.scenarios, &now, |kevery| kevery)?, 27);
     Ok(())
 }
 
@@ -132,8 +132,8 @@ fn an_unnamed_anchor_is_found_by_the_escrow_pass() -> Result<(), Box<dyn Error>>
         kevery.process(&message(waiting, "delegated_inception_without_source")?, &now)?,
         Processed::Escrowed(Escrow::PartiallyDelegated)
     );
-    assert_eq!(kevery.process_escrows(&now), 1);
-    assert_eq!(kevery.escrowed_events(), 0);
+    assert_eq!(kevery.process_escrows(&now)?, 1);
+    assert_eq!(kevery.escrowed_events()?, 0);
     Ok(())
 }
 
@@ -191,8 +191,8 @@ fn a_seal_with_its_fields_reordered_does_not_anchor() -> Result<(), Box<dyn Erro
         kevery.process(&signed(&delegated, &delegate, Some(source))?, &now)?,
         Processed::Escrowed(Escrow::PartiallyDelegated)
     );
-    assert_eq!(kevery.process_escrows(&now), 0);
-    assert!(kevery.kever(delegated.identifier()).is_none());
+    assert_eq!(kevery.process_escrows(&now)?, 0);
+    assert!(kevery.kever(delegated.identifier())?.is_none());
 
     // The same fields in keripy's order, anchored next, approve it.
     let mut ordered = Sad::new();
@@ -206,9 +206,9 @@ fn a_seal_with_its_fields_reordered_does_not_anchor() -> Result<(), Box<dyn Erro
         kevery.process(&signed(&reanchor, &boss, None)?, &now)?,
         Processed::Accepted
     );
-    assert_eq!(kevery.process_escrows(&now), 1);
+    assert_eq!(kevery.process_escrows(&now)?, 1);
     let logged = kevery
-        .logged(delegated.identifier(), 0)
+        .logged(delegated.identifier(), 0)?
         .ok_or("the delegate was not accepted")?;
     let delegation = logged.delegation().ok_or("no delegating event stored")?;
     assert_eq!(delegation.sequence_number().value(), 2);

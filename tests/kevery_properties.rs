@@ -100,24 +100,24 @@ proptest! {
         for (index, receipt) in chosen.iter().enumerate() {
             if index == position {
                 fail(kevery.process(&event, &now))?;
-                kevery.process_escrows(&now);
+                fail(kevery.process_escrows(&now))?;
             }
             fail(kevery.process(receipt, &now))?;
-            kevery.process_escrows(&now);
+            fail(kevery.process_escrows(&now))?;
         }
         if position == chosen.len() {
             fail(kevery.process(&event, &now))?;
-            kevery.process_escrows(&now);
+            fail(kevery.process_escrows(&now))?;
         }
 
         let enough = u32::try_from(receipted.len()).unwrap_or(u32::MAX) >= threshold;
-        prop_assert_eq!(kevery.kever(&identifier).is_some(), enough);
+        prop_assert_eq!(fail(kevery.kever(&identifier))?.is_some(), enough);
         if enough {
-            let logged = kevery.logged(&identifier, 0).ok_or_else(|| TestCaseError::fail("no logged inception"))?;
+            let logged = fail(kevery.logged(&identifier, 0))?.ok_or_else(|| TestCaseError::fail("no logged inception"))?;
             prop_assert_eq!(logged.witness_signatures().len(), receipted.len());
-            prop_assert_eq!(kevery.escrowed_events(), 0);
+            prop_assert_eq!(fail(kevery.escrowed_events())?, 0);
         } else {
-            prop_assert_eq!(kevery.escrowed_events(), 1);
+            prop_assert_eq!(fail(kevery.escrowed_events())?, 1);
         }
     }
 
@@ -131,12 +131,12 @@ proptest! {
             fail(kevery.process(receipt, &now))?;
         }
         fail(kevery.process(&event, &now))?;
-        kevery.process_escrows(&now);
-        let before = kevery.logged(&identifier, 0).cloned();
+        fail(kevery.process_escrows(&now))?;
+        let before = fail(kevery.logged(&identifier, 0))?;
         prop_assert!(before.is_some());
         for _ in 0..repeats {
             prop_assert_eq!(fail(kevery.process(&event, &now))?, Processed::Duplicate);
         }
-        prop_assert_eq!(kevery.logged(&identifier, 0).cloned(), before);
+        prop_assert_eq!(fail(kevery.logged(&identifier, 0))?, before);
     }
 }

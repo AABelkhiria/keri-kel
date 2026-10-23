@@ -16,6 +16,7 @@ this crate validates.
 | `event` | Reads a key event off the wire, verifying its SAID and, for an inception, its prefix |
 | `kever` | One identifier's key state, extended event by event under keripy's rules |
 | `kevery` | Many identifiers' logs: routes events and receipts, approves delegated events against their delegators' logs, and escrows what cannot be decided yet |
+| `store` | Where a `Kevery` keeps its logs, escrows and waiting receipts: traits, and an in-memory store |
 | `error` | Why an event was refused, and whether waiting could help |
 
 A `Kever` accepts:
@@ -53,8 +54,11 @@ a receipt or attached to the event. A receipt waits while the validator's event 
 Every message kind a key event log needs is processed: inceptions, rotations and interactions,
 delegated or not, and receipts from witnesses, non-transferable identifiers and validators.
 
-Nothing here reads a clock, a database or a network. The first-seen time is an argument and the
-state lives in the value.
+Nothing here reads a clock or a network. The first-seen time is an argument. A `Kever` holds its
+state in the value. A `Kevery` keeps everything in a store: `Kevery::new()` keeps it in memory, and
+`Kevery::with_store` takes any type implementing the `KelStore`, `EscrowStore` and `ReceiptStore`
+traits, such as one backed by a database. The validation rules stay in `Kevery`; a store only keeps
+what it is given.
 
 ## Use
 
