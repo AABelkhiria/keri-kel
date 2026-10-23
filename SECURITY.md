@@ -31,11 +31,21 @@ What it defends:
 - A rotation must reveal keys whose digests the prior establishment event committed to, to that
   event's next-key threshold, so a stolen current key cannot rotate the identifier.
 - A refused event leaves the state exactly as it was.
+- A delegated event is accepted only once its delegator's log anchors a seal of it.
+- A rotation may supersede accepted events only under keripy's recovery rules, as keripy applies
+  them, and the events it supersedes are kept, not discarded.
+- Any other event that contradicts an accepted one is kept aside as likely duplicitous and never
+  accepted.
+- A reply, a receipt or a key state notice counts only when its signer's own keys verify it, and a
+  reply only when it is newer than the one it replaces.
 - Malformed input returns a typed error. Crate-owned code has no `unsafe`, `unwrap`, `expect`,
   panicking macro or indexing that can fail.
 
-What it does not do yet, and a caller must not assume: detect duplicity between two logs, accept
-recovery rotations, validate delegation, or apply receipts that arrive separately from their event.
+What a caller must not assume: that a `Kevery` detects duplicity across the network. It keeps what
+it is offered and holds contradictions aside; comparing what several witnesses or watchers report
+is `adjudicate`'s job, and only as good as the reports it is given. A store's writes for one message
+are not grouped into a transaction; a store that needs them to land together must group them
+itself.
 
 ## Dependencies
 
