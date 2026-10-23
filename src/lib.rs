@@ -27,6 +27,9 @@
 //! delegated rotation may supersede the latest delegated rotation when its delegator approves it
 //! later, under keripy's rules as its code applies them.
 //!
+//! [`notice`] keeps key state notices, `/ksn` replies reporting an identifier's state, from the
+//! sources a [`NoticeTrust`] allows.
+//!
 //! Receipts from validators, transferable identifiers that receipt others' events, are verified
 //! against the keys of the validator's own establishment event they name, which [`Kevery`] must hold
 //! too, and stored with the event.
@@ -37,10 +40,12 @@ pub mod error;
 pub mod event;
 pub mod kever;
 pub mod kevery;
+pub mod notice;
 pub mod store;
 
 pub use error::{Escrow, KelError};
 pub use event::{EventSeal, KeyEventFields};
 pub use kever::Kever;
 pub use kevery::{EscrowedEvent, Kevery, LoggedEvent, Processed, ValidatorReceipt, WaitingReceipt, WaitingSignature};
-pub use store::{EscrowStore, KelStore, MemoryStore, ReceiptStore, Store, StoreError};
+pub use notice::{EscrowedReply, KeyStateNotice, NoticeTrust, ReplySignatures};
+pub use store::{EscrowStore, KelStore, MemoryStore, ReceiptStore, ReplyStore, Store, StoreError};

@@ -6,9 +6,11 @@
 //!   events recovery rotations superseded;
 //! - [`EscrowStore`]: events that cannot be decided yet, keyed by identifier and SAID, with the
 //!   order they entered their escrow;
-//! - [`ReceiptStore`]: receipt signatures waiting for the events they name.
+//! - [`ReceiptStore`]: receipt signatures waiting for the events they name;
+//! - [`ReplyStore`]: the key state notices kept, per identifier and reporting source, and replies
+//!   waiting for their signer's establishment event or more signatures.
 //!
-//! [`Store`] is all three together, which is what a `Kevery` takes. [`MemoryStore`] keeps
+//! [`Store`] is all four together, which is what a `Kevery` takes. [`MemoryStore`] keeps
 //! everything in memory and is what [`Kevery::new`](crate::Kevery::new) uses.
 //!
 //! Every method reads or writes owned values and may fail with a [`StoreError`], so that a store
@@ -25,6 +27,7 @@ use keri_protocol::event::timestamp::Timestamp;
 use crate::error::Escrow;
 use crate::kever::Kever;
 use crate::kevery::{EscrowedEvent, LoggedEvent, WaitingReceipt};
+use crate::notice::{EscrowedReply, KeyStateNotice};
 
 /// Why a store could not read or write.
 #[derive(Debug)]
@@ -197,10 +200,75 @@ pub trait ReceiptStore {
     fn expire_receipts(&mut self, cutoff: &Timestamp) -> Result<usize, StoreError>;
 }
 
-/// Everything a [`Kevery`](crate::Kevery) keeps.
-pub trait Store: KelStore + EscrowStore + ReceiptStore {}
+/// Key state notices kept and replies waiting, keripy's `knas`, `ksns`, `kdts`, `rpys`, `sdts`,
+/// `ssgs` and `rpes` tables. Identifiers, sources and SAIDs are qb64 text.
+pub trait ReplyStore {
+    /// Returns the notice kept from `source` about `identifier`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be read.
+    fn key_state_notice(&self, identifier: &str, source: &str) -> Result<Option<KeyStateNotice>, StoreError>;
 
-impl<T: KelStore + EscrowStore + ReceiptStore> Store for T {}
+    /// Returns every notice kept about `identifier`, with its source, in any order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be read.
+    fn key_state_notices(&self, identifier: &str) -> Result<Vec<(String, KeyStateNotice)>, StoreError>;
+
+    /// Keeps a notice from `source` about `identifier`, replacing any earlier one.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be written.
+    fn put_key_state_notice(
+        &mut self,
+        identifier: &str,
+        source: &str,
+        notice: KeyStateNotice,
+    ) -> Result<(), StoreError>;
+
+    /// Returns the waiting reply with this SAID.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be read.
+    fn escrowed_reply(&self, said: &str) -> Result<Option<EscrowedReply>, StoreError>;
+
+    /// Returns every waiting reply with its SAID, in any order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be read.
+    fn escrowed_replies(&self) -> Result<Vec<(String, EscrowedReply)>, StoreError>;
+
+    /// Keeps a waiting reply, replacing any with the same SAID.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be written.
+    fn put_escrowed_reply(&mut self, said: &str, reply: EscrowedReply) -> Result<(), StoreError>;
+
+    /// Removes a waiting reply, if there is one.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be written.
+    fn remove_escrowed_reply(&mut self, said: &str) -> Result<(), StoreError>;
+
+    /// Removes every waiting reply first escrowed before `cutoff`, and returns how many.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be written.
+    fn expire_escrowed_replies(&mut self, cutoff: &Timestamp) -> Result<usize, StoreError>;
+}
+
+/// Everything a [`Kevery`](crate::Kevery) keeps.
+pub trait Store: KelStore + EscrowStore + ReceiptStore + ReplyStore {}
+
+impl<T: KelStore + EscrowStore + ReceiptStore + ReplyStore> Store for T {}
 
 /// One identifier's key state, accepted events, and the events recovery rotations superseded.
 #[derive(Clone, Debug)]
@@ -217,6 +285,8 @@ pub struct MemoryStore {
     escrowed: BTreeMap<(String, String), EscrowedEvent>,
     arrivals: u64,
     receipts: Vec<WaitingReceipt>,
+    notices: BTreeMap<(String, String), KeyStateNotice>,
+    replies: BTreeMap<String, EscrowedReply>,
 }
 
 impl MemoryStore {
@@ -351,5 +421,58 @@ impl ReceiptStore for MemoryStore {
         let before = self.receipts.len();
         self.receipts.retain(|receipt| receipt.received_at() >= cutoff);
         Ok(before - self.receipts.len())
+    }
+}
+
+impl ReplyStore for MemoryStore {
+    fn key_state_notice(&self, identifier: &str, source: &str) -> Result<Option<KeyStateNotice>, StoreError> {
+        Ok(self.notices.get(&(identifier.to_owned(), source.to_owned())).cloned())
+    }
+
+    fn key_state_notices(&self, identifier: &str) -> Result<Vec<(String, KeyStateNotice)>, StoreError> {
+        Ok(self
+            .notices
+            .iter()
+            .filter(|((reported, _), _)| reported == identifier)
+            .map(|((_, source), notice)| (source.clone(), notice.clone()))
+            .collect())
+    }
+
+    fn put_key_state_notice(
+        &mut self,
+        identifier: &str,
+        source: &str,
+        notice: KeyStateNotice,
+    ) -> Result<(), StoreError> {
+        self.notices.insert((identifier.to_owned(), source.to_owned()), notice);
+        Ok(())
+    }
+
+    fn escrowed_reply(&self, said: &str) -> Result<Option<EscrowedReply>, StoreError> {
+        Ok(self.replies.get(said).cloned())
+    }
+
+    fn escrowed_replies(&self) -> Result<Vec<(String, EscrowedReply)>, StoreError> {
+        Ok(self
+            .replies
+            .iter()
+            .map(|(said, reply)| (said.clone(), reply.clone()))
+            .collect())
+    }
+
+    fn put_escrowed_reply(&mut self, said: &str, reply: EscrowedReply) -> Result<(), StoreError> {
+        self.replies.insert(said.to_owned(), reply);
+        Ok(())
+    }
+
+    fn remove_escrowed_reply(&mut self, said: &str) -> Result<(), StoreError> {
+        self.replies.remove(said);
+        Ok(())
+    }
+
+    fn expire_escrowed_replies(&mut self, cutoff: &Timestamp) -> Result<usize, StoreError> {
+        let before = self.replies.len();
+        self.replies.retain(|_, reply| reply.since() >= cutoff);
+        Ok(before - self.replies.len())
     }
 }

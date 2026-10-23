@@ -30,6 +30,10 @@
   attached to events, against the validator's named establishment event, stores them as
   `ValidatorReceipt`s, and escrows them until the validator's event is accepted, verified against
   keripy.
+- Key state notices: `Kevery` keeps `/ksn` replies from trusted sources (`NoticeTrust`), signed by
+  their source, newer than the one kept before, and consistent with the local log, escrowing those
+  awaiting a transferable signer, verified against keripy; unlike keripy, an older notice never
+  replaces a newer one.
 - Store traits: `Kevery` keeps its logs, escrows and waiting receipts behind `KelStore`,
   `EscrowStore` and `ReceiptStore`, with `MemoryStore` as the default; a failing store is reported
   as `KelError::Store`.

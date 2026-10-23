@@ -23,7 +23,7 @@ import sys
 from dataclasses import asdict
 
 from keri import kering
-from keri.core import eventing
+from keri.core import eventing, routing
 from keri.core.coring import Diger, MtrDex, Prefixer, Saider, Seqner
 from keri.core.counting import Codens, Counter
 from keri.core.signing import Signer
@@ -58,12 +58,19 @@ def digest(key):
 class Scenario:
     """Offers keripy's `Kevery` one message at a time and snapshots what it holds after each."""
 
-    def __init__(self, name, note, identifiers):
+    def __init__(self, name, note, identifiers, *, lax=True, watchers=()):
+        """`lax=False` applies keripy's trust policy to key state notices, trusting the `watchers`
+        a local identifier configures, as keripy's controllers do."""
         self.name = name
         self.note = note
         self.identifiers = identifiers
+        self.trust = None if lax else {"watchers": list(watchers)}
         self.db = basing.Baser(name=name, temp=True, reopen=True)
-        self.kevery = eventing.Kevery(db=self.db)
+        if watchers:
+            self.db.habs.put(keys=("local",), val=basing.HabitatRecord(hid="local", watchers=list(watchers)))
+        self.revery = routing.Revery(db=self.db, lax=lax)
+        self.kevery = eventing.Kevery(db=self.db, lax=lax, rvy=self.revery)
+        self.kevery.registerReplyRoutes(router=self.revery.rtr)
         self.steps = []
 
     def event(self, label, serder, expect, *, sigers=(), wigers=(), cigars=(), source=None, trqs=()):
@@ -111,6 +118,18 @@ class Scenario:
                            lambda: self.kevery.processReceipt(serder=receipt, cigars=list(cigars), tsgs=tsgs,
                                                               wigers=list(wigers)))
 
+    def reply(self, label, serder, expect, *, cigars=(), group=None):
+        """Offers a reply signed by non-transferable couples or a transferable `group`
+        `(signer, sn, said, sigers)`."""
+        seal, sigers, tsgs = None, None, []
+        if group is not None:
+            pre, sn, said, sigers = group
+            seal = eventing.SealEvent(i=pre, s=f"{sn:x}", d=said)
+            tsgs = [(Prefixer(qb64=pre), Seqner(sn=sn), Saider(qb64=said), list(sigers))]
+        raw = bytes(eventing.messagize(serder, sigers=sigers, seal=seal, cigars=list(cigars) or None))
+        return self._offer(label, raw, expect,
+                           lambda: self.revery.processReply(serder=serder, cigars=list(cigars), tsgs=tsgs))
+
     def _offer(self, label, raw, expect, run):
         step = {"label": label, "raw": raw.decode(), "raw_hex": raw.hex(), "rust_outcome": expect}
         try:
@@ -124,6 +143,7 @@ class Scenario:
             if mapped is not None and expect != f"Escrowed:{mapped}":
                 raise AssertionError(f"{self.name}/{label}: keripy escrowed {mapped}, expected {expect}")
         self.kevery.processEscrows()
+        self.revery.processEscrowReply()
         step["after"] = self.snapshot()
         self.steps.append(step)
         return self
@@ -176,11 +196,28 @@ class Scenario:
         escrowed |= {(bytes(key), bytes(dig)) for key, dig in self.db.getLdeItemIter(key=b"")}
         waiting = sum(1 for _ in self.db.uwes.getItemIter()) + sum(1 for _ in self.db.getUreItemIter(key=b""))
         waiting += sum(1 for _ in self.db.getVreItemIter(key=b""))
-        return {"states": states, "escrowed_events": len(escrowed), "waiting_receipts": waiting}
+        snapshot = {"states": states, "escrowed_events": len(escrowed), "waiting_receipts": waiting}
+        # Key state notices keripy accepted: per reported identifier and reporting source, the state.
+        notices = []
+        for (pre, source), saider in self.db.knas.getItemIter():
+            ksr = self.db.ksns.get(keys=(saider.qb64,))
+            notices.append({"identifier": pre, "source": source,
+                            "state_json": json.dumps(asdict(ksr), separators=(",", ":"))})
+        if notices:
+            snapshot["key_state_notices"] = sorted(notices, key=lambda notice: (notice["identifier"],
+                                                                                notice["source"]))
+        replies = sum(1 for _ in self.db.rpes.getItemIter())
+        if replies:
+            snapshot["escrowed_replies"] = replies
+        return snapshot
 
     def record(self):
         self.db.close(clear=True)
-        return {"name": self.name, "note": self.note, "steps": self.steps}
+        record = {"name": self.name, "note": self.note, "steps": self.steps}
+        if self.trust is not None:
+            # keripy's strict trust policy, and the watchers a local identifier configures.
+            record["trust"] = self.trust
+        return record
 
 
 def main():

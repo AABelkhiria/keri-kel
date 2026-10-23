@@ -2,7 +2,8 @@
 //!
 //! The fixtures under `fixtures/kevery-keripy`, `fixtures/delegation-keripy` and
 //! `fixtures/out-of-order-keripy`, `fixtures/recovery-keripy` and
-//! `fixtures/delegated-recovery-keripy` and `fixtures/validator-receipts-keripy` share one shape:
+//! `fixtures/delegated-recovery-keripy`, `fixtures/validator-receipts-keripy` and
+//! `fixtures/key-state-notices-keripy` share one shape:
 //! each step is a message, the outcome the port must reach, and a snapshot of what keripy held
 //! after processing it and its escrows.
 
@@ -10,7 +11,7 @@ use std::error::Error;
 
 use keri_cesr::crypto::signature::IndexedSignature;
 use keri_cesr::sequence::SequenceNumber;
-use keri_kel::{Escrow, KelError, Kevery, Processed};
+use keri_kel::{Escrow, KelError, Kevery, NoticeTrust, Processed};
 use keri_protocol::event::timestamp::Timestamp;
 use keri_protocol::prefix::IdentifierPrefix;
 use keri_protocol::stream::Message;
@@ -23,6 +24,21 @@ pub(crate) struct Scenario {
     pub(crate) name: String,
     pub(crate) note: String,
     pub(crate) steps: Vec<Step>,
+    /// keripy's strict trust policy for key state notices, when the scenario applies it.
+    #[serde(default)]
+    pub(crate) trust: Option<Trust>,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct Trust {
+    pub(crate) watchers: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+pub(crate) struct NoticeSnapshot {
+    pub(crate) identifier: String,
+    pub(crate) source: String,
+    pub(crate) state_json: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,6 +63,10 @@ pub(crate) struct Snapshot {
     pub(crate) states: Vec<IdentifierSnapshot>,
     pub(crate) escrowed_events: usize,
     pub(crate) waiting_receipts: usize,
+    #[serde(default)]
+    pub(crate) key_state_notices: Vec<NoticeSnapshot>,
+    #[serde(default)]
+    pub(crate) escrowed_replies: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -116,6 +136,12 @@ pub(crate) fn outcome_matches(result: &Result<Processed, KelError>, expected: &s
         "StaleReceipt" => matches!(result, Err(KelError::StaleReceipt)),
         "PriorMismatch" => matches!(result, Err(KelError::PriorMismatch)),
         "SupersedingDelegationNotLater" => matches!(result, Err(KelError::SupersedingDelegationNotLater)),
+        "KeyStateAccepted" => matches!(result, Ok(Processed::KeyStateAccepted)),
+        "Escrowed:UnverifiedReply" => matches!(result, Ok(Processed::Escrowed(Escrow::UnverifiedReply))),
+        "UnverifiedReply" => matches!(result, Err(KelError::UnverifiedReply)),
+        "StaleKeyState" => matches!(result, Err(KelError::StaleKeyState)),
+        "KeyStateMismatch" => matches!(result, Err(KelError::KeyStateMismatch)),
+        "UntrustedKeyStateSource" => matches!(result, Err(KelError::UntrustedKeyStateSource)),
         "UndelegatedRotation" => matches!(result, Err(KelError::UndelegatedRotation)),
         "DelegationForbidden" => matches!(result, Err(KelError::DelegationForbidden)),
         "DelegationSourceAtInception" => matches!(result, Err(KelError::DelegationSourceAtInception)),
@@ -183,6 +209,24 @@ pub(crate) fn compare(kevery: &Kevery, expected: &Snapshot, context: &str) -> Re
         expected.waiting_receipts,
         "{context}: waiting receipts"
     );
+    assert_eq!(
+        kevery.escrowed_replies()?,
+        expected.escrowed_replies,
+        "{context}: escrowed replies"
+    );
+    let mut notices = Vec::new();
+    for identifier in &expected.states {
+        let prefix = IdentifierPrefix::from_qb64(&identifier.identifier)?;
+        for (source, notice) in kevery.key_state_notices(&prefix)? {
+            notices.push(NoticeSnapshot {
+                identifier: identifier.identifier.clone(),
+                source,
+                state_json: String::from_utf8(notice.state().to_sad()?.to_json_bytes()?)?,
+            });
+        }
+    }
+    notices.sort_by(|left, right| (&left.identifier, &left.source).cmp(&(&right.identifier, &right.source)));
+    assert_eq!(notices, expected.key_state_notices, "{context}: key state notices");
     for identifier in &expected.states {
         let (state, events) = held(kevery, &identifier.identifier)?;
         assert_eq!(state, identifier.state_json, "{context}: key state");
@@ -213,6 +257,20 @@ pub(crate) fn offer(
     Ok(result)
 }
 
+/// An empty set of logs, applying the scenario's trust policy.
+pub(crate) fn kevery_for(scenario: &Scenario) -> Result<Kevery, Box<dyn Error>> {
+    Ok(match &scenario.trust {
+        None => Kevery::new(),
+        Some(trust) => Kevery::new().trusting(NoticeTrust::Watchers(
+            trust
+                .watchers
+                .iter()
+                .map(|watcher| IdentifierPrefix::from_qb64(watcher))
+                .collect::<Result<_, _>>()?,
+        )),
+    })
+}
+
 /// Replays every scenario from an empty set of logs, checking each step's outcome and what is
 /// held after it, and returns how many steps were replayed. `between` runs after each step, before
 /// the check: it may hand the logs on, or return them as they are.
@@ -224,7 +282,7 @@ pub(crate) fn replay(
     let mut steps = 0;
     for scenario in scenarios {
         assert_ne!(scenario.note, "");
-        let mut kevery = Kevery::new();
+        let mut kevery = kevery_for(scenario)?;
         for step in &scenario.steps {
             steps += 1;
             let context = format!("{}/{}", scenario.name, step.label);

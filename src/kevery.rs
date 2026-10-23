@@ -80,6 +80,7 @@ use keri_protocol::stream::{Message, ReceiptQuadruple, TransferableSignatureGrou
 use crate::error::{Escrow, KelError};
 use crate::event::{EventSeal, KeyEventFields};
 use crate::kever::{Delegations, Kever, Offer, Verified, verified, witness_keys};
+use crate::notice::NoticeTrust;
 use crate::store::{MemoryStore, Store};
 
 /// What became of one processed message.
@@ -91,6 +92,8 @@ pub enum Processed {
     Duplicate,
     /// The receipt's signatures were added to the event it names.
     Receipted,
+    /// The key state notice was kept, replacing any earlier one from the same source.
+    KeyStateAccepted,
     /// The message was kept for later, for the reason given.
     Escrowed(Escrow),
 }
@@ -351,7 +354,8 @@ impl WaitingReceipt {
 /// Many identifiers' key event logs, keripy's `Kevery`, kept in a [`Store`].
 #[derive(Clone, Debug, Default)]
 pub struct Kevery<S = MemoryStore> {
-    store: S,
+    pub(crate) store: S,
+    pub(crate) trust: NoticeTrust,
 }
 
 impl Kevery {
@@ -364,8 +368,25 @@ impl Kevery {
 
 impl<S: Store> Kevery<S> {
     /// Logs kept in `store`, which may already hold some.
-    pub const fn with_store(store: S) -> Self {
-        Self { store }
+    pub fn with_store(store: S) -> Self {
+        Self {
+            store,
+            trust: NoticeTrust::default(),
+        }
+    }
+
+    /// Keeps key state notices only from the sources `trust` allows. The policy is configuration,
+    /// not stored state: a `Kevery` made over an existing store starts trusting any source.
+    #[must_use]
+    pub fn trusting(mut self, trust: NoticeTrust) -> Self {
+        self.trust = trust;
+        self
+    }
+
+    /// Returns whose key state notices are kept.
+    #[must_use]
+    pub const fn trust(&self) -> &NoticeTrust {
+        &self.trust
     }
 
     /// Returns the store.
@@ -399,6 +420,9 @@ impl<S: Store> Kevery<S> {
             .map_err(KelError::serialization)?
             .ok_or(KelError::UnexpectedFieldShape { label: "t" })?;
         let attachments = message.attachments();
+        if kind == EventKind::Reply {
+            return self.process_reply(message, now);
+        }
         if kind == EventKind::Receipt {
             return self.process_receipt(
                 message.event(),
@@ -797,7 +821,8 @@ impl<S: Store> Kevery<S> {
 
     /// Retries everything waiting, in keripy's order: out-of-order events, then receipts waiting
     /// for an escrowed event, then partially delegated, partially witnessed and partially signed
-    /// events, then likely-duplicitous ones. An event accepted now is first seen at `now`. Returns
+    /// events, then likely-duplicitous ones, and last waiting replies. An event accepted now is
+    /// first seen at `now`. Returns
     /// how many events were accepted.
     ///
     /// # Errors
@@ -815,6 +840,7 @@ impl<S: Store> Kevery<S> {
         ] {
             accepted += self.retry(reason, now)?;
         }
+        self.retry_replies(now)?;
         Ok(accepted)
     }
 
@@ -864,7 +890,7 @@ impl<S: Store> Kevery<S> {
                         .map_err(KelError::store)?;
                     accepted += 1;
                 }
-                Ok(Processed::Escrowed(_) | Processed::Receipted) => {}
+                Ok(Processed::Escrowed(_) | Processed::Receipted | Processed::KeyStateAccepted) => {}
                 Err(error @ KelError::Store { .. }) => return Err(error),
                 Err(_) => {
                     self.store
@@ -1027,7 +1053,7 @@ impl<S: Store> Kevery<S> {
         Ok(Matched::Applied)
     }
 
-    /// Drops every escrowed event and waiting receipt first seen before `cutoff`, and returns how
+    /// Drops every escrowed event, waiting receipt and waiting reply first seen before `cutoff`, and returns how
     /// many were dropped. Timestamps compare as text, which orders them correctly when they share
     /// a UTC offset, as every timestamp this crate writes does.
     ///
@@ -1037,7 +1063,8 @@ impl<S: Store> Kevery<S> {
     pub fn expire_escrows(&mut self, cutoff: &Timestamp) -> Result<usize, KelError> {
         let events = self.store.expire_escrowed(cutoff).map_err(KelError::store)?;
         let receipts = self.store.expire_receipts(cutoff).map_err(KelError::store)?;
-        Ok(events.saturating_add(receipts))
+        let replies = self.store.expire_escrowed_replies(cutoff).map_err(KelError::store)?;
+        Ok(events.saturating_add(receipts).saturating_add(replies))
     }
 
     /// Returns an identifier's key state, when its inception has been accepted.

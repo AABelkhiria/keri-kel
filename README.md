@@ -16,7 +16,8 @@ this crate validates.
 | `event` | Reads a key event off the wire, verifying its SAID and, for an inception, its prefix |
 | `kever` | One identifier's key state, extended event by event under keripy's rules |
 | `kevery` | Many identifiers' logs: routes events and receipts, approves delegated events against their delegators' logs, and escrows what cannot be decided yet |
-| `store` | Where a `Kevery` keeps its logs, escrows and waiting receipts: traits, and an in-memory store |
+| `notice` | Key state notices: which `/ksn` replies a `Kevery` keeps, and whose it trusts |
+| `store` | Where a `Kevery` keeps its logs, escrows, waiting receipts and notices: traits, and an in-memory store |
 | `error` | Why an event was refused, and whether waiting could help |
 
 A `Kever` accepts:
@@ -51,8 +52,16 @@ Receipts from validators, transferable identifiers such as watchers, are verifie
 of the validator's establishment event they name and stored with the event, whether they arrive in
 a receipt or attached to the event. A receipt waits while the validator's event is not accepted.
 
+A `Kevery` also keeps key state notices, `/ksn` replies in which a witness, a watcher or the
+controller reports an identifier's state: the latest from each source, once it is signed by that
+source, newer than the last one kept from it, and consistent with the local log. By default it
+trusts any source, as keripy's witnesses do; `NoticeTrust::Watchers` keeps only the identifier's,
+its witnesses' and the configured watchers', as keripy's controllers do. One keripy defect is not
+followed: keripy never compares a notice's date with the one it replaces, and keeps older ones.
+
 Every message kind a key event log needs is processed: inceptions, rotations and interactions,
-delegated or not, and receipts from witnesses, non-transferable identifiers and validators.
+delegated or not, receipts from witnesses, non-transferable identifiers and validators, and key
+state notices.
 
 Nothing here reads a clock or a network. The first-seen time is an argument. A `Kever` holds its
 state in the value. A `Kevery` keeps everything in a store: `Kevery::new()` keeps it in memory, and

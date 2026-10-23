@@ -26,6 +26,9 @@ pub enum Escrow {
     /// A validator's receipt names an event of the validator not yet accepted; keripy's unverified
     /// transferable receipt escrow.
     UnverifiedTransferableReceipt,
+    /// A reply is signed by a transferable source whose establishment event is not accepted yet,
+    /// or whose signatures do not yet meet its threshold; keripy's reply escrow.
+    UnverifiedReply,
     /// A delegated event is fully signed and witnessed, but its delegator's approval has not been
     /// found yet; keripy's partially delegated escrow.
     PartiallyDelegated,
@@ -142,6 +145,25 @@ pub enum KelError {
     SupersededWithoutDelegation,
     /// An event contradicts one already accepted at its sequence number.
     LikelyDuplicitous,
+    /// A reply's route is not `/ksn/{source}`; other routes are the application's.
+    UnsupportedReplyRoute,
+    /// A key state notice comes from a source the trust policy does not trust: not the identifier
+    /// itself, not one of its witnesses, and not a configured watcher.
+    UntrustedKeyStateSource,
+    /// A key state notice reports a state older than the local log's.
+    StaleKeyState,
+    /// A key state notice reports, at a sequence number the local log holds, an event other than
+    /// the local one.
+    KeyStateMismatch,
+    /// No signature attached to a reply establishes it: none is its source's, newer than what was
+    /// kept before, and valid.
+    UnverifiedReply,
+    /// A reply could not be read, or its signature group could not be checked: the group names
+    /// another event than the signer's, or one without keys, or none of its signatures verify.
+    Reply {
+        /// Underlying failure.
+        source: Box<dyn Error + Send + Sync>,
+    },
     /// A receipt names an event other than the one accepted at its sequence number.
     StaleReceipt,
     /// A validator's receipt names an event other than the validator's accepted event at the
@@ -247,6 +269,10 @@ impl KelError {
         }
     }
 
+    pub(crate) fn reply(source: impl Into<Box<dyn Error + Send + Sync>>) -> Self {
+        Self::Reply { source: source.into() }
+    }
+
     pub(crate) fn event(source: EventError) -> Self {
         Self::Event {
             source: Box::new(source),
@@ -313,6 +339,12 @@ impl fmt::Display for KelError {
                 formatter.write_str("superseded event has no delegating event to compare with")
             }
             Self::LikelyDuplicitous => formatter.write_str("event contradicts one already accepted"),
+            Self::UnsupportedReplyRoute => formatter.write_str("reply route is not a key state notice"),
+            Self::UntrustedKeyStateSource => formatter.write_str("key state notice comes from an untrusted source"),
+            Self::StaleKeyState => formatter.write_str("key state notice is older than the local log"),
+            Self::KeyStateMismatch => formatter.write_str("key state notice contradicts the local log"),
+            Self::UnverifiedReply => formatter.write_str("no signature establishes the reply"),
+            Self::Reply { .. } => formatter.write_str("reply signature group could not be checked"),
             Self::StaleReceipt => formatter.write_str("receipt names an event other than the accepted one"),
             Self::ReceiptorEventMismatch => {
                 formatter.write_str("validator receipt names an event the validator did not accept")
@@ -343,6 +375,7 @@ impl Error for KelError {
             Self::Threshold { source } => Some(source.as_ref()),
             Self::Cesr { source } => Some(source.as_ref()),
             Self::Store { source } => Some(source.as_ref()),
+            Self::Reply { source } => Some(source.as_ref()),
             Self::Event { source } => Some(source.as_ref()),
             _ => None,
         }

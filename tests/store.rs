@@ -7,8 +7,8 @@ use std::cell::Cell;
 use std::error::Error;
 
 use keri_kel::{
-    Escrow, EscrowStore, EscrowedEvent, KelError, KelStore, Kever, Kevery, LoggedEvent, MemoryStore, ReceiptStore,
-    StoreError, WaitingReceipt,
+    Escrow, EscrowStore, EscrowedEvent, EscrowedReply, KelError, KelStore, Kever, Kevery, KeyStateNotice, LoggedEvent,
+    MemoryStore, ReceiptStore, ReplyStore, StoreError, WaitingReceipt,
 };
 use keri_protocol::event::timestamp::Timestamp;
 use keri_protocol::stream::Message;
@@ -51,16 +51,22 @@ fn a_store_handed_on_carries_everything() -> Result<(), Box<dyn Error>> {
             env!("CARGO_MANIFEST_DIR"),
             "/fixtures/validator-receipts-keripy/v1.json"
         )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/fixtures/key-state-notices-keripy/v1.json"
+        )),
     ];
     let mut steps = 0;
     for json in fixtures {
         let fixture = fixture(json)?;
         let now = Timestamp::parse(&fixture.now)?;
         steps += replay(&fixture.scenarios, &now, |kevery| {
-            Kevery::with_store(kevery.into_store())
+            // The trust policy is configuration, carried over as an application would.
+            let trust = kevery.trust().clone();
+            Kevery::with_store(kevery.into_store()).trusting(trust)
         })?;
     }
-    assert_eq!(steps, 157);
+    assert_eq!(steps, 176);
     Ok(())
 }
 
@@ -171,6 +177,49 @@ impl ReceiptStore for Failing {
     fn expire_receipts(&mut self, cutoff: &Timestamp) -> Result<usize, StoreError> {
         self.write()?;
         self.inner.expire_receipts(cutoff)
+    }
+}
+
+impl ReplyStore for Failing {
+    fn key_state_notice(&self, identifier: &str, source: &str) -> Result<Option<KeyStateNotice>, StoreError> {
+        self.inner.key_state_notice(identifier, source)
+    }
+
+    fn key_state_notices(&self, identifier: &str) -> Result<Vec<(String, KeyStateNotice)>, StoreError> {
+        self.inner.key_state_notices(identifier)
+    }
+
+    fn put_key_state_notice(
+        &mut self,
+        identifier: &str,
+        source: &str,
+        notice: KeyStateNotice,
+    ) -> Result<(), StoreError> {
+        self.write()?;
+        self.inner.put_key_state_notice(identifier, source, notice)
+    }
+
+    fn escrowed_reply(&self, said: &str) -> Result<Option<EscrowedReply>, StoreError> {
+        self.inner.escrowed_reply(said)
+    }
+
+    fn escrowed_replies(&self) -> Result<Vec<(String, EscrowedReply)>, StoreError> {
+        self.inner.escrowed_replies()
+    }
+
+    fn put_escrowed_reply(&mut self, said: &str, reply: EscrowedReply) -> Result<(), StoreError> {
+        self.write()?;
+        self.inner.put_escrowed_reply(said, reply)
+    }
+
+    fn remove_escrowed_reply(&mut self, said: &str) -> Result<(), StoreError> {
+        self.write()?;
+        self.inner.remove_escrowed_reply(said)
+    }
+
+    fn expire_escrowed_replies(&mut self, cutoff: &Timestamp) -> Result<usize, StoreError> {
+        self.write()?;
+        self.inner.expire_escrowed_replies(cutoff)
     }
 }
 
