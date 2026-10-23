@@ -21,6 +21,9 @@ pub enum Escrow {
     PartiallyWitnessed,
     /// A receipt names an event not yet accepted; keripy's unverified receipt escrows.
     UnverifiedReceipt,
+    /// A validator's receipt names an event of the validator not yet accepted; keripy's unverified
+    /// transferable receipt escrow.
+    UnverifiedTransferableReceipt,
     /// A delegated event is fully signed and witnessed, but its delegator's approval has not been
     /// found yet; keripy's partially delegated escrow.
     PartiallyDelegated,
@@ -139,9 +142,13 @@ pub enum KelError {
     LikelyDuplicitous,
     /// A receipt names an event other than the one accepted at its sequence number.
     StaleReceipt,
-    /// A receipt is signed by a transferable identifier; only witness and non-transferable
-    /// receipts are processed yet.
-    TransferableReceiptsUnsupported,
+    /// A validator's receipt names an event other than the validator's accepted event at the
+    /// named sequence number.
+    ReceiptorEventMismatch,
+    /// A validator's receipt names an interaction, which lists no keys to verify it with.
+    ReceiptorEventHasNoKeys,
+    /// A validator's signature names a key position past the keys of the event it names.
+    ReceiptSignatureIndexOutOfRange,
     /// A field holds a different shape than a key event defines.
     UnexpectedFieldShape {
         /// Label of the field.
@@ -294,8 +301,12 @@ impl fmt::Display for KelError {
             }
             Self::LikelyDuplicitous => formatter.write_str("event contradicts one already accepted"),
             Self::StaleReceipt => formatter.write_str("receipt names an event other than the accepted one"),
-            Self::TransferableReceiptsUnsupported => {
-                formatter.write_str("receipts from transferable identifiers are not processed yet")
+            Self::ReceiptorEventMismatch => {
+                formatter.write_str("validator receipt names an event the validator did not accept")
+            }
+            Self::ReceiptorEventHasNoKeys => formatter.write_str("validator receipt names an event without keys"),
+            Self::ReceiptSignatureIndexOutOfRange => {
+                formatter.write_str("validator signature index is past the validator's keys")
             }
             Self::UnexpectedFieldShape { label } => write!(formatter, "field {label:?} has an unexpected shape"),
             Self::Serialization { .. } => formatter.write_str("message could not be parsed"),

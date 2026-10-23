@@ -46,7 +46,12 @@ in the delegator's log, or the latest event when that is an interaction at its n
 documents further cases that its code refuses; the port refuses them too, so that both hold the
 same events (see `fixtures/delegated-recovery-keripy/README.md`).
 
-Not covered yet: receipts from transferable identifiers.
+Receipts from validators, transferable identifiers such as watchers, are verified against the keys
+of the validator's establishment event they name and stored with the event, whether they arrive in
+a receipt or attached to the event. A receipt waits while the validator's event is not accepted.
+
+Every message kind a key event log needs is processed: inceptions, rotations and interactions,
+delegated or not, and receipts from witnesses, non-transferable identifiers and validators.
 
 Nothing here reads a clock, a database or a network. The first-seen time is an argument and the
 state lives in the value.

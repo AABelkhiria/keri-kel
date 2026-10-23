@@ -2,13 +2,14 @@
 //!
 //! The fixtures under `fixtures/kevery-keripy`, `fixtures/delegation-keripy` and
 //! `fixtures/out-of-order-keripy`, `fixtures/recovery-keripy` and
-//! `fixtures/delegated-recovery-keripy` share one shape:
+//! `fixtures/delegated-recovery-keripy` and `fixtures/validator-receipts-keripy` share one shape:
 //! each step is a message, the outcome the port must reach, and a snapshot of what keripy held
 //! after processing it and its escrows.
 
 use std::error::Error;
 
 use keri_cesr::crypto::signature::IndexedSignature;
+use keri_cesr::sequence::SequenceNumber;
 use keri_kel::{Escrow, KelError, Kevery, Processed};
 use keri_protocol::event::timestamp::Timestamp;
 use keri_protocol::prefix::IdentifierPrefix;
@@ -65,6 +66,10 @@ pub(crate) struct EventSnapshot {
     pub(crate) signatures: Vec<String>,
     pub(crate) witness_signatures: Vec<String>,
     pub(crate) receipts: Vec<String>,
+    /// Validator receipts: validator, its event's sequence number and SAID, and signature, as qb64
+    /// text, sorted.
+    #[serde(default)]
+    pub(crate) validator_receipts: Vec<String>,
     /// The delegating event stored with a delegated event.
     #[serde(default)]
     pub(crate) delegation: Option<Delegation>,
@@ -101,6 +106,12 @@ pub(crate) fn outcome_matches(result: &Result<Processed, KelError>, expected: &s
         "Escrowed:PartiallyDelegated" => matches!(result, Ok(Processed::Escrowed(Escrow::PartiallyDelegated))),
         "Escrowed:OutOfOrder" => matches!(result, Ok(Processed::Escrowed(Escrow::OutOfOrder))),
         "Escrowed:LikelyDuplicitous" => matches!(result, Ok(Processed::Escrowed(Escrow::LikelyDuplicitous))),
+        "Escrowed:UnverifiedTransferableReceipt" => {
+            matches!(result, Ok(Processed::Escrowed(Escrow::UnverifiedTransferableReceipt)))
+        }
+        "ReceiptorEventMismatch" => matches!(result, Err(KelError::ReceiptorEventMismatch)),
+        "ReceiptorEventHasNoKeys" => matches!(result, Err(KelError::ReceiptorEventHasNoKeys)),
+        "ReceiptSignatureIndexOutOfRange" => matches!(result, Err(KelError::ReceiptSignatureIndexOutOfRange)),
         "Escrowed:UnverifiedReceipt" => matches!(result, Ok(Processed::Escrowed(Escrow::UnverifiedReceipt))),
         "StaleReceipt" => matches!(result, Err(KelError::StaleReceipt)),
         "PriorMismatch" => matches!(result, Err(KelError::PriorMismatch)),
@@ -145,6 +156,15 @@ pub(crate) fn held(kevery: &Kevery, identifier: &str) -> Result<(Option<String>,
             witness_signatures: texts(logged.witness_signatures(), indexed)?,
             receipts: texts(logged.receipts(), |couple| {
                 Ok(format!("{}{}", couple.verifier().qb64()?, couple.signature().qb64()?))
+            })?,
+            validator_receipts: texts(logged.validator_receipts(), |receipt| {
+                Ok(format!(
+                    "{}{}{}{}",
+                    receipt.validator().qb64()?,
+                    SequenceNumber::new(receipt.sequence_number()).qb64()?,
+                    receipt.said().qb64()?,
+                    receipt.signature().qb64()?
+                ))
             })?,
             delegation,
         });

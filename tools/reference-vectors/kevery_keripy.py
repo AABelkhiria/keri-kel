@@ -24,7 +24,7 @@ from dataclasses import asdict
 
 from keri import kering
 from keri.core import eventing
-from keri.core.coring import Diger, MtrDex, Saider, Seqner
+from keri.core.coring import Diger, MtrDex, Prefixer, Saider, Seqner
 from keri.core.counting import Codens, Counter
 from keri.core.signing import Signer
 from keri.db import basing
@@ -43,6 +43,7 @@ OUTCOMES = {
     kering.MissingDelegationError: "PartiallyDelegated",
     kering.OutOfOrderError: "OutOfOrder",
     kering.LikelyDuplicitousError: "LikelyDuplicitous",
+    kering.UnverifiedTransferableReceiptError: "UnverifiedTransferableReceipt",
 }
 
 
@@ -65,9 +66,15 @@ class Scenario:
         self.kevery = eventing.Kevery(db=self.db)
         self.steps = []
 
-    def event(self, label, serder, expect, *, sigers=(), wigers=(), cigars=(), source=None):
+    def event(self, label, serder, expect, *, sigers=(), wigers=(), cigars=(), source=None, trqs=()):
+        """`trqs` are validator receipt quadruples `(receiptor, sn, said, siger)` attached to the event."""
         raw = bytes(eventing.messagize(serder, sigers=list(sigers) or None, wigers=list(wigers) or None,
                                        cigars=list(cigars) or None))
+        quadruples = [(Prefixer(qb64=pre), Seqner(sn=sn), Saider(qb64=said), siger) for pre, sn, said, siger in trqs]
+        if quadruples:
+            raw += Counter(Codens.TransReceiptQuadruples, count=len(quadruples), gvrsn=kering.Vrsn_1_0).qb64b
+            for prefixer, seqner, saider, siger in quadruples:
+                raw += prefixer.qb64b + seqner.qb64b + saider.qb64b + siger.qb64b
         seqner = saider = None
         if source is not None:
             # A delegated event names its delegating event in a seal source couple, which keripy's
@@ -79,20 +86,38 @@ class Scenario:
         def run():
             self.kevery.processEvent(serder=serder, sigers=list(sigers), wigers=list(wigers),
                                      delseqner=seqner, delsaider=saider)
-            if cigars:
-                self.kevery.processAttachedReceiptCouples(serder, list(cigars))
+            # keripy's parser processes attached receipts only once the event is accepted; what
+            # they raise does not change what became of the event, so it is recorded apart.
+            try:
+                if cigars:
+                    self.kevery.processAttachedReceiptCouples(serder, list(cigars))
+                if quadruples:
+                    self.kevery.processAttachedReceiptQuadruples(serder, quadruples)
+            except Exception as error:  # noqa: BLE001 - the error class is the datum being recorded
+                return {"raised": type(error).__name__, "message": str(error)[:240]}
+            return None
         return self._offer(label, raw, expect, run)
 
-    def receipt(self, label, receipt, expect, *, wigers=(), cigars=()):
-        raw = bytes(eventing.messagize(receipt, wigers=list(wigers) or None, cigars=list(cigars) or None))
+    def receipt(self, label, receipt, expect, *, wigers=(), cigars=(), group=None):
+        """`group` is a validator's signature group `(receiptor, sn, said, sigers)`."""
+        seal, sigers, tsgs = None, None, []
+        if group is not None:
+            pre, sn, said, sigers = group
+            seal = eventing.SealEvent(i=pre, s=f"{sn:x}", d=said)
+            tsgs = [(Prefixer(qb64=pre), Seqner(sn=sn), Saider(qb64=said), list(sigers))]
+        raw = bytes(eventing.messagize(receipt, sigers=sigers, seal=seal, wigers=list(wigers) or None,
+                                       cigars=list(cigars) or None))
         return self._offer(label, raw, expect,
-                           lambda: self.kevery.processReceipt(serder=receipt, cigars=list(cigars), wigers=list(wigers)))
+                           lambda: self.kevery.processReceipt(serder=receipt, cigars=list(cigars), tsgs=tsgs,
+                                                              wigers=list(wigers)))
 
     def _offer(self, label, raw, expect, run):
         step = {"label": label, "raw": raw.decode(), "raw_hex": raw.hex(), "rust_outcome": expect}
         try:
-            run()
+            attachments = run()
             step["keripy"] = {"raised": None}
+            if attachments is not None:
+                step["keripy"]["attachments"] = attachments
         except Exception as error:  # noqa: BLE001 - the error class is the datum being recorded
             step["keripy"] = {"raised": type(error).__name__, "message": str(error)[:240]}
             mapped = OUTCOMES.get(type(error))
@@ -123,6 +148,10 @@ class Scenario:
                     "witness_signatures": sorted(bytes(wig).decode() for wig in self.db.getWigs(key)),
                     "receipts": sorted(bytes(rct).decode() for rct in self.db.getRcts(key)),
                 }
+                validators = sorted(bytes(vrc).decode() for vrc in self.db.getVrcs(key))
+                if validators:
+                    # Validator receipts: receiptor, its establishment event's number and SAID, signature.
+                    event["validator_receipts"] = validators
                 source = self.db.getAes(key)
                 if source is not None:
                     # The delegating event's sequence number and SAID, stored with a delegated event.
@@ -146,6 +175,7 @@ class Scenario:
         escrowed |= {(bytes(key), bytes(dig)) for key, dig in self.db.getOoeItemIter(key=b"")}
         escrowed |= {(bytes(key), bytes(dig)) for key, dig in self.db.getLdeItemIter(key=b"")}
         waiting = sum(1 for _ in self.db.uwes.getItemIter()) + sum(1 for _ in self.db.getUreItemIter(key=b""))
+        waiting += sum(1 for _ in self.db.getVreItemIter(key=b""))
         return {"states": states, "escrowed_events": len(escrowed), "waiting_receipts": waiting}
 
     def record(self):

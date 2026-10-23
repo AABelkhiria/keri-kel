@@ -26,7 +26,9 @@
 //! delegated rotation may supersede the latest delegated rotation when its delegator approves it
 //! later, under keripy's rules as its code applies them.
 //!
-//! Not yet covered: receipts from transferable identifiers.
+//! Receipts from validators, transferable identifiers that receipt others' events, are verified
+//! against the keys of the validator's own establishment event they name, which [`Kevery`] must hold
+//! too, and stored with the event.
 
 #![forbid(unsafe_code)]
 
@@ -38,4 +40,4 @@ pub mod kevery;
 pub use error::{Escrow, KelError};
 pub use event::{EventSeal, KeyEventFields};
 pub use kever::Kever;
-pub use kevery::{Kevery, LoggedEvent, Processed};
+pub use kevery::{Kevery, LoggedEvent, Processed, ValidatorReceipt};

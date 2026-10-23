@@ -6,7 +6,15 @@
 //! - the next event for a known identifier is validated against its key state;
 //! - an event already accepted is a duplicate, and any further signatures it carries that verify
 //!   are added to the stored event;
-//! - a receipt (`rct`) adds witness signatures, or receipt couples, to the event it names.
+//! - a receipt (`rct`) adds witness signatures, receipt couples, or a validator's signatures to
+//!   the event it names.
+//!
+//! A validator is a transferable identifier that receipts others' events: its receipt names one of
+//! its own establishment events, and each signature is verified against that event's keys, so the
+//! validator's log must be held too. Such signatures arrive in a receipt as an indexed signature
+//! group, or attached to the event itself as receipt quadruples; either way they are stored with the
+//! event as [`ValidatorReceipt`]s. Quadruples attached to an event never change what becomes of the
+//! event: they are stored, kept until the validator's event is accepted, or dropped.
 //!
 //! A delegated inception, or a rotation of a delegated identifier, is accepted only once its
 //! delegator's log holds an event anchoring a seal of it. The event may name that event in a seal
@@ -69,7 +77,7 @@ use keri_protocol::event::timestamp::Timestamp;
 use keri_protocol::prefix::IdentifierPrefix;
 use keri_protocol::said::Said;
 use keri_protocol::serialization::SerializedEvent;
-use keri_protocol::stream::Message;
+use keri_protocol::stream::{Message, ReceiptQuadruple, TransferableSignatureGroup};
 
 use crate::error::{Escrow, KelError};
 use crate::event::{EventSeal, KeyEventFields};
@@ -95,6 +103,7 @@ pub struct LoggedEvent {
     signatures: Vec<IndexedSignature>,
     witness_signatures: Vec<IndexedSignature>,
     receipts: Vec<ReceiptCouple>,
+    validator_receipts: Vec<ValidatorReceipt>,
     keys: Vec<VerificationKey>,
     witnesses: Vec<IdentifierPrefix>,
     delegation: Option<SealSourceCouple>,
@@ -119,6 +128,12 @@ impl LoggedEvent {
     #[must_use]
     pub fn witness_signatures(&self) -> &[IndexedSignature] {
         &self.witness_signatures
+    }
+
+    /// Returns the verified signatures of validators stored for it.
+    #[must_use]
+    pub fn validator_receipts(&self) -> &[ValidatorReceipt] {
+        &self.validator_receipts
     }
 
     /// Returns the verified receipt couples from non-witnesses stored for it.
@@ -175,11 +190,75 @@ struct Escrowed {
     since: Timestamp,
 }
 
+/// A validator's signature of an event: the validator, the establishment event of its own whose
+/// keys signed, and the indexed signature. keripy stores it as a quadruple in its `vrcs` table.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ValidatorReceipt {
+    validator: IdentifierPrefix,
+    sequence_number: u128,
+    said: Said,
+    signature: IndexedSignature,
+}
+
+impl ValidatorReceipt {
+    fn from_group(group: &TransferableSignatureGroup, signature: &IndexedSignature) -> Self {
+        Self {
+            validator: group.identifier().clone(),
+            sequence_number: group.sequence_number().value(),
+            said: group.said(),
+            signature: signature.clone(),
+        }
+    }
+
+    fn from_quadruple(quadruple: &ReceiptQuadruple) -> Self {
+        Self {
+            validator: quadruple.identifier().clone(),
+            sequence_number: quadruple.sequence_number().value(),
+            said: quadruple.said(),
+            signature: quadruple.signature().clone(),
+        }
+    }
+
+    /// Returns the validator's identifier.
+    #[must_use]
+    pub const fn validator(&self) -> &IdentifierPrefix {
+        &self.validator
+    }
+
+    /// Returns the sequence number of the validator's establishment event whose keys signed.
+    #[must_use]
+    pub const fn sequence_number(&self) -> u128 {
+        self.sequence_number
+    }
+
+    /// Returns the SAID of that establishment event.
+    #[must_use]
+    pub const fn said(&self) -> Said {
+        self.said
+    }
+
+    /// Returns the validator's indexed signature.
+    #[must_use]
+    pub const fn signature(&self) -> &IndexedSignature {
+        &self.signature
+    }
+}
+
+/// What checking a validator's signature against the validator's log found.
+enum Check {
+    Verified,
+    BadSignature,
+    /// The validator's event it names is not accepted yet.
+    Waiting,
+    Refused(KelError),
+}
+
 /// A receipt signature waiting for the event it names.
 #[derive(Clone, Debug)]
 enum WaitingSignature {
     Witness(IndexedSignature),
     Couple(ReceiptCouple),
+    Validator(ValidatorReceipt),
 }
 
 #[derive(Clone, Debug)]
@@ -214,7 +293,8 @@ impl Kevery {
     /// Returns [`KelError::UnsupportedKind`] for a message that is neither a key event nor a
     /// receipt; [`KelError::StaleReceipt`] for a receipt naming an event
     /// other than the one accepted at its sequence number;
-    /// [`KelError::TransferableReceiptsUnsupported`] for a receipt from a transferable identifier;
+    /// [`KelError::ReceiptorEventMismatch`], [`KelError::ReceiptorEventHasNoKeys`] and
+    /// [`KelError::ReceiptSignatureIndexOutOfRange`] for a validator's receipt keripy refuses;
     /// [`KelError::DelegationForbidden`] and [`KelError::DelegationSourceAtInception`] for a
     /// delegated event its delegator will never approve; and the validation errors of [`Kever`] for
     /// an event that will never be accepted.
@@ -226,13 +306,11 @@ impl Kevery {
             .ok_or(KelError::UnexpectedFieldShape { label: "t" })?;
         let attachments = message.attachments();
         if kind == EventKind::Receipt {
-            if !attachments.transferable_signature_groups().is_empty() || !attachments.receipt_quadruples().is_empty() {
-                return Err(KelError::TransferableReceiptsUnsupported);
-            }
             return self.process_receipt(
                 message.event(),
                 attachments.witness_signatures(),
                 attachments.receipt_couples(),
+                attachments.transferable_signature_groups(),
                 now,
             );
         }
@@ -245,9 +323,11 @@ impl Kevery {
             first_seen_at: now.clone(),
         };
         let processed = self.process_event(&offer, false)?;
-        if !attachments.receipt_couples().is_empty() && matches!(processed, Processed::Accepted | Processed::Duplicate)
-        {
-            self.attach_couples(message.event(), attachments.receipt_couples())?;
+        if matches!(processed, Processed::Accepted | Processed::Duplicate) {
+            if !attachments.receipt_couples().is_empty() {
+                self.attach_couples(message.event(), attachments.receipt_couples())?;
+            }
+            self.attach_quadruples(message.event(), attachments.receipt_quadruples(), now);
         }
         Ok(processed)
     }
@@ -415,43 +495,175 @@ impl Kevery {
         raw: &SerializedEvent,
         witness_signatures: &[IndexedSignature],
         couples: &[ReceiptCouple],
+        groups: &[TransferableSignatureGroup],
         now: &Timestamp,
     ) -> Result<Processed, KelError> {
         let receipt = ReceiptMessage::from_serialized(raw.clone()).map_err(KelError::event)?;
         let identifier = qb64(receipt.identifier())?;
-        let stored = self
+        let waiting = |signature| WaitingReceipt {
+            identifier: identifier.clone(),
+            sequence_number: receipt.sequence_number(),
+            said: receipt.said(),
+            signature,
+            received_at: now.clone(),
+        };
+        let receipted = self
             .logs
-            .get_mut(&identifier)
-            .and_then(|log| log.events.get_mut(&receipt.sequence_number()));
-        let Some(stored) = stored else {
-            for signature in witness_signatures {
-                self.receipts.push(WaitingReceipt {
-                    identifier: identifier.clone(),
-                    sequence_number: receipt.sequence_number(),
-                    said: receipt.said(),
-                    signature: WaitingSignature::Witness(signature.clone()),
-                    received_at: now.clone(),
-                });
+            .get(&identifier)
+            .and_then(|log| log.events.get(&receipt.sequence_number()));
+        let Some(receipted) = receipted else {
+            let mut held: Vec<WaitingReceipt> = Vec::new();
+            held.extend(
+                witness_signatures
+                    .iter()
+                    .map(|signature| waiting(WaitingSignature::Witness(signature.clone()))),
+            );
+            held.extend(
+                couples
+                    .iter()
+                    .map(|couple| waiting(WaitingSignature::Couple(couple.clone()))),
+            );
+            for group in groups {
+                held.extend(group.signatures().iter().map(|signature| {
+                    waiting(WaitingSignature::Validator(ValidatorReceipt::from_group(
+                        group, signature,
+                    )))
+                }));
             }
-            for couple in couples {
-                self.receipts.push(WaitingReceipt {
-                    identifier: identifier.clone(),
-                    sequence_number: receipt.sequence_number(),
-                    said: receipt.said(),
-                    signature: WaitingSignature::Couple(couple.clone()),
-                    received_at: now.clone(),
-                });
-            }
+            self.receipts.extend(held);
             return Ok(Processed::Escrowed(Escrow::UnverifiedReceipt));
         };
-        if stored.event.said() != Some(receipt.said().qb64().map_err(KelError::said)?.as_str()) {
+        if receipted.event.said() != Some(receipt.said().qb64().map_err(KelError::said)?.as_str()) {
             return Err(KelError::StaleReceipt);
         }
+        // keripy stores couples, then each validator group, then witness signatures, and stops at
+        // the first group it cannot verify yet or refuses, keeping what it stored before.
+        let message = receipted.event.raw().to_vec();
+        let mut validated = Vec::new();
+        let mut stopped = None;
+        'groups: for group in groups {
+            for signature in group.signatures() {
+                let validator = ValidatorReceipt::from_group(group, signature);
+                match self.check_validator(&validator, &message) {
+                    Check::Verified => validated.push(validator),
+                    Check::BadSignature => {}
+                    Check::Waiting => {
+                        stopped = Some(Ok(group
+                            .signatures()
+                            .iter()
+                            .map(|signature| {
+                                waiting(WaitingSignature::Validator(ValidatorReceipt::from_group(
+                                    group, signature,
+                                )))
+                            })
+                            .collect::<Vec<_>>()));
+                        break 'groups;
+                    }
+                    Check::Refused(error) => {
+                        stopped = Some(Err(error));
+                        break 'groups;
+                    }
+                }
+            }
+        }
+        let Some(stored) = self
+            .logs
+            .get_mut(&identifier)
+            .and_then(|log| log.events.get_mut(&receipt.sequence_number()))
+        else {
+            return Ok(Processed::Receipted);
+        };
         apply_couples(stored, couples);
+        for validator in validated {
+            if !stored.validator_receipts.contains(&validator) {
+                stored.validator_receipts.push(validator);
+            }
+        }
+        match stopped {
+            Some(Ok(held)) => {
+                self.receipts.extend(held);
+                return Ok(Processed::Escrowed(Escrow::UnverifiedTransferableReceipt));
+            }
+            Some(Err(error)) => return Err(error),
+            None => {}
+        }
         let keys = witness_keys(&stored.witnesses);
         let (_, verified) = verified(witness_signatures, &keys, stored.event.raw());
         merge(&mut stored.witness_signatures, verified);
         Ok(Processed::Receipted)
+    }
+
+    /// keripy's checks of a validator's signature: the validator's accepted event at the named
+    /// sequence number must be the one named and list keys, and the signature's index must name
+    /// one of them.
+    fn check_validator(&self, validator: &ValidatorReceipt, message: &[u8]) -> Check {
+        let Some(named) = validator
+            .validator
+            .qb64()
+            .ok()
+            .and_then(|identifier| self.logs.get(&identifier))
+            .and_then(|log| log.events.get(&validator.sequence_number))
+        else {
+            return Check::Waiting;
+        };
+        if validator.said.qb64().ok().as_deref() != named.event.said() {
+            return Check::Refused(KelError::ReceiptorEventMismatch);
+        }
+        let establishment = !matches!(named.event.event_kind(), Ok(Some(EventKind::Interaction)));
+        let keys: &[VerificationKey] = if establishment { &named.keys } else { &[] };
+        if keys.is_empty() {
+            return Check::Refused(KelError::ReceiptorEventHasNoKeys);
+        }
+        let Some(key) = usize::try_from(validator.signature.index())
+            .ok()
+            .and_then(|index| keys.get(index))
+        else {
+            return Check::Refused(KelError::ReceiptSignatureIndexOutOfRange);
+        };
+        if key.verify(validator.signature.raw(), message).is_ok() {
+            Check::Verified
+        } else {
+            Check::BadSignature
+        }
+    }
+
+    /// keripy's `processAttachedReceiptQuadruples`, for an event just accepted or offered again:
+    /// stores each quadruple that verifies, and stops at the first that waits for its validator's
+    /// event, which is kept, or that fails.
+    fn attach_quadruples(&mut self, raw: &SerializedEvent, quadruples: &[ReceiptQuadruple], now: &Timestamp) {
+        let Ok(event) = KeyEventFields::read(raw) else {
+            return;
+        };
+        let Ok(identifier) = qb64(event.identifier()) else {
+            return;
+        };
+        for quadruple in quadruples {
+            let validator = ValidatorReceipt::from_quadruple(quadruple);
+            match self.check_validator(&validator, raw.raw()) {
+                Check::Verified => {
+                    if let Some(stored) = self
+                        .logs
+                        .get_mut(&identifier)
+                        .and_then(|log| log.events.get_mut(&event.sequence_number()))
+                        && !stored.validator_receipts.contains(&validator)
+                    {
+                        stored.validator_receipts.push(validator);
+                    }
+                }
+                Check::Waiting => {
+                    self.receipts.push(WaitingReceipt {
+                        identifier,
+                        sequence_number: event.sequence_number(),
+                        said: event.said(),
+                        signature: WaitingSignature::Validator(validator),
+                        received_at: now.clone(),
+                    });
+                    return;
+                }
+                // keripy refuses a quadruple whose signature fails, and the rest with it.
+                Check::BadSignature | Check::Refused(_) => return,
+            }
+        }
     }
 
     /// keripy's `processAttachedReceiptCouples`, without its prefix-comparison defect.
@@ -560,6 +772,9 @@ impl Kevery {
         let Ok(said) = receipt.said.qb64() else {
             return Matched::Dropped;
         };
+        if let WaitingSignature::Validator(validator) = &receipt.signature {
+            return self.match_validator(receipt, validator, &said);
+        }
         let current = self
             .logs
             .get(&receipt.identifier)
@@ -589,6 +804,8 @@ impl Kevery {
                         None => return Matched::Dropped,
                     }
                 }
+                // Matched above, before any partially witnessed event is consulted.
+                WaitingSignature::Validator(_) => return Matched::Kept,
             };
             let (_, verified) = verified(std::slice::from_ref(&signature), &keys, escrowed.event.raw());
             if verified.is_empty() {
@@ -598,8 +815,39 @@ impl Kevery {
             return Matched::Applied;
         }
         match receipt.signature {
-            WaitingSignature::Witness(_) => Matched::Kept,
+            WaitingSignature::Witness(_) | WaitingSignature::Validator(_) => Matched::Kept,
             WaitingSignature::Couple(_) => self.apply_to_accepted(receipt, &said),
+        }
+    }
+
+    /// keripy's `processEscrowUnverTrans`: a validator's signature waits until both the receipted
+    /// event and the validator's named event are accepted, and is dropped when either is another
+    /// event or the signature fails.
+    fn match_validator(&mut self, receipt: &WaitingReceipt, validator: &ValidatorReceipt, said: &str) -> Matched {
+        let Some(receipted) = self
+            .logs
+            .get(&receipt.identifier)
+            .and_then(|log| log.events.get(&receipt.sequence_number))
+        else {
+            return Matched::Kept;
+        };
+        if receipted.event.said() != Some(said) {
+            return Matched::Dropped;
+        }
+        match self.check_validator(validator, receipted.event.raw()) {
+            Check::Waiting => Matched::Kept,
+            Check::BadSignature | Check::Refused(_) => Matched::Dropped,
+            Check::Verified => {
+                if let Some(stored) = self
+                    .logs
+                    .get_mut(&receipt.identifier)
+                    .and_then(|log| log.events.get_mut(&receipt.sequence_number))
+                    && !stored.validator_receipts.contains(validator)
+                {
+                    stored.validator_receipts.push(validator.clone());
+                }
+                Matched::Applied
+            }
         }
     }
 
@@ -714,6 +962,7 @@ fn logged(
         signatures: verified.signatures,
         witness_signatures: verified.witness_signatures,
         receipts: Vec::new(),
+        validator_receipts: Vec::new(),
         keys: kever.keys().to_vec(),
         witnesses: kever.witnesses().to_vec(),
         delegation: verified.delegation,

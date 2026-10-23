@@ -26,3 +26,7 @@
 - Delegated recovery: a delegated rotation supersedes the latest delegated rotation when its
   delegating event is later in the delegator's log, or the latest event when that is an
   interaction at its number, and every other delegated supersession is refused, as keripy does.
+- Validator receipts: `Kevery` verifies receipts from transferable identifiers, in receipts and
+  attached to events, against the validator's named establishment event, stores them as
+  `ValidatorReceipt`s, and escrows them until the validator's event is accepted, verified against
+  keripy.
