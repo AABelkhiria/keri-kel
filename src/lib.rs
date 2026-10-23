@@ -28,7 +28,8 @@
 //! later, under keripy's rules as its code applies them.
 //!
 //! [`notice`] keeps key state notices, `/ksn` replies reporting an identifier's state, from the
-//! sources a [`NoticeTrust`] allows.
+//! sources a [`NoticeTrust`] allows, and [`adjudication`] decides from what an identifier's
+//! watchers report whether the local state is consistent, lagging, behind them, or contradicted.
 //!
 //! Receipts from validators, transferable identifiers that receipt others' events, are verified
 //! against the keys of the validator's own establishment event they name, which [`Kevery`] must hold
@@ -36,6 +37,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod adjudication;
 pub mod error;
 pub mod event;
 pub mod kever;
@@ -43,6 +45,7 @@ pub mod kevery;
 pub mod notice;
 pub mod store;
 
+pub use adjudication::{Adjudication, WatcherReport, adjudicate};
 pub use error::{Escrow, KelError};
 pub use event::{EventSeal, KeyEventFields};
 pub use kever::Kever;

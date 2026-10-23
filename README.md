@@ -17,6 +17,7 @@ this crate validates.
 | `kever` | One identifier's key state, extended event by event under keripy's rules |
 | `kevery` | Many identifiers' logs: routes events and receipts, approves delegated events against their delegators' logs, and escrows what cannot be decided yet |
 | `notice` | Key state notices: which `/ksn` replies a `Kevery` keeps, and whose it trusts |
+| `adjudication` | Whether watchers' reports of an identifier agree with the local state, lag, call for an update, or show duplicity |
 | `store` | Where a `Kevery` keeps its logs, escrows, waiting receipts and notices: traits, and an in-memory store |
 | `error` | Why an event was refused, and whether waiting could help |
 
@@ -58,6 +59,10 @@ source, newer than the last one kept from it, and consistent with the local log.
 trusts any source, as keripy's witnesses do; `NoticeTrust::Watchers` keeps only the identifier's,
 its witnesses' and the configured watchers', as keripy's controllers do. One keripy defect is not
 followed: keripy never compares a notice's date with the one it replaces, and keeps older ones.
+
+`adjudicate` compares what an identifier's watchers last reported with the local state, as keripy's
+`Adjudicator` does: duplicity first, then watchers ahead, which call for an update when enough of
+them agree, then watchers behind. `Kevery::adjudicate` does so from the notices it kept.
 
 Every message kind a key event log needs is processed: inceptions, rotations and interactions,
 delegated or not, receipts from witnesses, non-transferable identifiers and validators, and key

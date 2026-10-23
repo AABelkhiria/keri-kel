@@ -1,0 +1,464 @@
+{
+  "schema_version": 1,
+  "upstream": "https://github.com/WebOfTrust/keripy.git",
+  "reference_sha": "4ce4cc79e06653f77342be1bf604086b89b1f090",
+  "reference_version": "1.3.6",
+  "generated_on": "2026-10-23",
+  "sources": [
+    "src/keri/app/watching.py"
+  ],
+  "local": "even",
+  "states": {
+    "behind": "{\"vn\":[1,0],\"i\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"s\":\"0\",\"p\":\"\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"f\":\"0\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"icp\",\"kt\":\"1\",\"k\":[\"DIqI4910CfGV_VLbLTy6XXLKZwm_HZQSG_N0iAG0D29c\"],\"nt\":\"1\",\"n\":[\"EHQEteSlbY8drT6QN0MNFGqlQlvWeCrI1evK9L7T0akI\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+    "even": "{\"vn\":[1,0],\"i\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"s\":\"1\",\"p\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"d\":\"EMIh57AESqDxJKeC5hPnfBHS8LCWuGIF6LNNOjtBoLVs\",\"f\":\"1\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"ixn\",\"kt\":\"1\",\"k\":[\"DIqI4910CfGV_VLbLTy6XXLKZwm_HZQSG_N0iAG0D29c\"],\"nt\":\"1\",\"n\":[\"EHQEteSlbY8drT6QN0MNFGqlQlvWeCrI1evK9L7T0akI\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+    "duplicitous": "{\"vn\":[1,0],\"i\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"s\":\"1\",\"p\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"d\":\"EJM86TrAUpsSyZejlX1V41BvBh5cMAocrCxh98BTJJww\",\"f\":\"1\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"ixn\",\"kt\":\"1\",\"k\":[\"DIqI4910CfGV_VLbLTy6XXLKZwm_HZQSG_N0iAG0D29c\"],\"nt\":\"1\",\"n\":[\"EHQEteSlbY8drT6QN0MNFGqlQlvWeCrI1evK9L7T0akI\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+    "ahead": "{\"vn\":[1,0],\"i\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"s\":\"2\",\"p\":\"EMIh57AESqDxJKeC5hPnfBHS8LCWuGIF6LNNOjtBoLVs\",\"d\":\"EI5A90REFH_bMcz1tn6e-PqXj7kkbjzoBQCrPZ4GmRqI\",\"f\":\"2\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"ixn\",\"kt\":\"1\",\"k\":[\"DIqI4910CfGV_VLbLTy6XXLKZwm_HZQSG_N0iAG0D29c\"],\"nt\":\"1\",\"n\":[\"EHQEteSlbY8drT6QN0MNFGqlQlvWeCrI1evK9L7T0akI\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"br\":[],\"ba\":[]},\"di\":\"\"}",
+    "ahead_elsewhere": "{\"vn\":[1,0],\"i\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"s\":\"2\",\"p\":\"EMIh57AESqDxJKeC5hPnfBHS8LCWuGIF6LNNOjtBoLVs\",\"d\":\"EHyGKqLuIJEFW9IexZ1Ill6xo0tESjkP60UzsZwUnb2d\",\"f\":\"2\",\"dt\":\"2021-01-01T00:00:00.000000+00:00\",\"et\":\"ixn\",\"kt\":\"1\",\"k\":[\"DIqI4910CfGV_VLbLTy6XXLKZwm_HZQSG_N0iAG0D29c\"],\"nt\":\"1\",\"n\":[\"EHQEteSlbY8drT6QN0MNFGqlQlvWeCrI1evK9L7T0akI\"],\"bt\":\"0\",\"b\":[],\"c\":[],\"ee\":{\"s\":\"0\",\"d\":\"EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5\",\"br\":[],\"ba\":[]},\"di\":\"\"}"
+  },
+  "cases": [
+    {
+      "name": "all_even",
+      "note": "Every watcher reports the local state.",
+      "threshold": null,
+      "reports": [
+        {
+          "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+          "state": "even"
+        },
+        {
+          "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "state": "even"
+        },
+        {
+          "watcher": "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "state": "even"
+        }
+      ],
+      "keripy": {
+        "raised": null,
+        "kind": "keyStateConsistent",
+        "watchers": [
+          "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq"
+        ],
+        "named": [
+          [
+            "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+            "even",
+            1,
+            "EMIh57AESqDxJKeC5hPnfBHS8LCWuGIF6LNNOjtBoLVs"
+          ],
+          [
+            "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+            "even",
+            1,
+            "EMIh57AESqDxJKeC5hPnfBHS8LCWuGIF6LNNOjtBoLVs"
+          ],
+          [
+            "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+            "even",
+            1,
+            "EMIh57AESqDxJKeC5hPnfBHS8LCWuGIF6LNNOjtBoLVs"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "silent_watcher",
+      "note": "Two watchers report the local state and one reports nothing; the two decide.",
+      "threshold": null,
+      "reports": [
+        {
+          "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+          "state": "even"
+        },
+        {
+          "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "state": "even"
+        },
+        {
+          "watcher": "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "state": null
+        }
+      ],
+      "keripy": {
+        "raised": null,
+        "kind": "keyStateConsistent",
+        "watchers": [
+          "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq"
+        ],
+        "named": [
+          [
+            "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+            "even",
+            1,
+            "EMIh57AESqDxJKeC5hPnfBHS8LCWuGIF6LNNOjtBoLVs"
+          ],
+          [
+            "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+            "even",
+            1,
+            "EMIh57AESqDxJKeC5hPnfBHS8LCWuGIF6LNNOjtBoLVs"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "no_reports",
+      "note": "No watcher has reported anything.",
+      "threshold": null,
+      "reports": [
+        {
+          "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+          "state": null
+        },
+        {
+          "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "state": null
+        }
+      ],
+      "keripy": {
+        "raised": null,
+        "kind": "keyStateConsistent",
+        "watchers": [
+          "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq"
+        ],
+        "named": []
+      }
+    },
+    {
+      "name": "one_behind",
+      "note": "One watcher reports an earlier state: it lags.",
+      "threshold": null,
+      "reports": [
+        {
+          "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+          "state": "even"
+        },
+        {
+          "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "state": "behind"
+        },
+        {
+          "watcher": "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "state": "even"
+        }
+      ],
+      "keripy": {
+        "raised": null,
+        "kind": "keyStateLagging",
+        "watchers": [
+          "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq"
+        ],
+        "named": [
+          [
+            "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+            "behind",
+            0,
+            "EM-WFDLO6Nx-gmVMPl4VhiKRhssBndTQB3hoCOG8gIz5"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "one_duplicitous",
+      "note": "One watcher reports another event at the local sequence number.",
+      "threshold": null,
+      "reports": [
+        {
+          "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+          "state": "even"
+        },
+        {
+          "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "state": "duplicitous"
+        },
+        {
+          "watcher": "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "state": "even"
+        }
+      ],
+      "keripy": {
+        "raised": null,
+        "kind": "keyStateDuplicitous",
+        "watchers": [
+          "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq"
+        ],
+        "named": [
+          [
+            "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+            "duplicitous",
+            1,
+            "EJM86TrAUpsSyZejlX1V41BvBh5cMAocrCxh98BTJJww"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "duplicity_first",
+      "note": "Duplicity outweighs watchers ahead and behind.",
+      "threshold": null,
+      "reports": [
+        {
+          "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+          "state": "ahead"
+        },
+        {
+          "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "state": "duplicitous"
+        },
+        {
+          "watcher": "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "state": "behind"
+        }
+      ],
+      "keripy": {
+        "raised": null,
+        "kind": "keyStateDuplicitous",
+        "watchers": [
+          "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq"
+        ],
+        "named": [
+          [
+            "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+            "duplicitous",
+            1,
+            "EJM86TrAUpsSyZejlX1V41BvBh5cMAocrCxh98BTJJww"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "all_ahead",
+      "note": "Every watcher reports the same later state; with no threshold, all must agree.",
+      "threshold": null,
+      "reports": [
+        {
+          "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+          "state": "ahead"
+        },
+        {
+          "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "state": "ahead"
+        },
+        {
+          "watcher": "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "state": "ahead"
+        }
+      ],
+      "keripy": {
+        "raised": null,
+        "kind": "keyStateUpdate",
+        "watchers": [
+          "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq"
+        ],
+        "named": [
+          [
+            "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+            "ahead",
+            2,
+            "EI5A90REFH_bMcz1tn6e-PqXj7kkbjzoBQCrPZ4GmRqI"
+          ],
+          [
+            "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+            "ahead",
+            2,
+            "EI5A90REFH_bMcz1tn6e-PqXj7kkbjzoBQCrPZ4GmRqI"
+          ],
+          [
+            "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+            "ahead",
+            2,
+            "EI5A90REFH_bMcz1tn6e-PqXj7kkbjzoBQCrPZ4GmRqI"
+          ]
+        ],
+        "sequence_number": 2
+      }
+    },
+    {
+      "name": "enough_ahead",
+      "note": "Two of three watchers report the same later state, and two are enough.",
+      "threshold": 2,
+      "reports": [
+        {
+          "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+          "state": "ahead"
+        },
+        {
+          "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "state": "ahead"
+        },
+        {
+          "watcher": "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "state": "even"
+        }
+      ],
+      "keripy": {
+        "raised": null,
+        "kind": "keyStateUpdate",
+        "watchers": [
+          "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq"
+        ],
+        "named": [
+          [
+            "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+            "ahead",
+            2,
+            "EI5A90REFH_bMcz1tn6e-PqXj7kkbjzoBQCrPZ4GmRqI"
+          ],
+          [
+            "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+            "ahead",
+            2,
+            "EI5A90REFH_bMcz1tn6e-PqXj7kkbjzoBQCrPZ4GmRqI"
+          ]
+        ],
+        "sequence_number": 2
+      }
+    },
+    {
+      "name": "too_few_ahead",
+      "note": "Two of three watchers report the same later state, but all three must agree; keripy decides nothing.",
+      "threshold": null,
+      "reports": [
+        {
+          "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+          "state": "ahead"
+        },
+        {
+          "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "state": "ahead"
+        },
+        {
+          "watcher": "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "state": "even"
+        }
+      ],
+      "keripy": {
+        "raised": null,
+        "kind": null
+      }
+    },
+    {
+      "name": "zero_threshold",
+      "note": "A threshold of zero means every watcher, as no threshold does: two of three ahead decide nothing.",
+      "threshold": 0,
+      "reports": [
+        {
+          "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+          "state": "ahead"
+        },
+        {
+          "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "state": "ahead"
+        },
+        {
+          "watcher": "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "state": "even"
+        }
+      ],
+      "keripy": {
+        "raised": null,
+        "kind": null
+      }
+    },
+    {
+      "name": "ahead_hides_behind",
+      "note": "One watcher is ahead and one behind; keripy looks only at those ahead, which fall short of the threshold, and decides nothing.",
+      "threshold": null,
+      "reports": [
+        {
+          "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+          "state": "ahead"
+        },
+        {
+          "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "state": "behind"
+        },
+        {
+          "watcher": "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "state": "even"
+        }
+      ],
+      "keripy": {
+        "raised": null,
+        "kind": null
+      }
+    },
+    {
+      "name": "ahead_on_different_events",
+      "note": "Two watchers report different later events: duplicity among them.",
+      "threshold": 1,
+      "reports": [
+        {
+          "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+          "state": "ahead"
+        },
+        {
+          "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "state": "ahead_elsewhere"
+        },
+        {
+          "watcher": "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "state": "even"
+        }
+      ],
+      "keripy": {
+        "raised": null,
+        "kind": "keyStateDuplicitous",
+        "watchers": [
+          "BE7TL2O_NfDu78sl8oouH73Ic64oNWcbDJRg9fEuRVao",
+          "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq"
+        ],
+        "named": [
+          [
+            "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+            "ahead",
+            2,
+            "EHyGKqLuIJEFW9IexZ1Ill6xo0tESjkP60UzsZwUnb2d"
+          ],
+          [
+            "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+            "ahead",
+            2,
+            "EI5A90REFH_bMcz1tn6e-PqXj7kkbjzoBQCrPZ4GmRqI"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "threshold_above_the_watchers",
+      "note": "A threshold larger than the watcher set is refused.",
+      "threshold": 3,
+      "reports": [
+        {
+          "watcher": "BKzbDil0PwzLhobQoQTLluBavv7BU4dl51lYaffcjEmq",
+          "state": "even"
+        },
+        {
+          "watcher": "BEMEa_5AkrPpSZTq2hXcwg2Kqge2WP05VOuODvuL3KXe",
+          "state": "even"
+        }
+      ],
+      "keripy": {
+        "raised": "ValueError",
+        "message": "Threshold of 3 is greater than number watchers 2"
+      }
+    }
+  ]
+}

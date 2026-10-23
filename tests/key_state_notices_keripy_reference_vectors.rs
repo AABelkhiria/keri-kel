@@ -9,7 +9,7 @@ mod support;
 
 use std::error::Error;
 
-use keri_kel::KelError;
+use keri_kel::{Adjudication, KelError, Kevery};
 use keri_protocol::event::timestamp::Timestamp;
 use keri_protocol::prefix::IdentifierPrefix;
 use serde::Deserialize;
@@ -94,5 +94,40 @@ fn an_older_notice_does_not_replace_a_newer_one() -> Result<(), Box<dyn Error>> 
     let (_, kept) = kept.first().ok_or("the port kept no notice")?;
     assert_eq!(kept.state().sequence_number(), 1, "the port keeps the newer report");
     assert_eq!(reported(&notice.after)?, "1");
+    Ok(())
+}
+
+/// A `Kevery` adjudicates from the notices it kept: the witness's and the controller's report of
+/// the state at the inception agree with the local log.
+#[test]
+fn a_kevery_adjudicates_from_the_notices_it_kept() -> Result<(), Box<dyn Error>> {
+    let fixture = fixture()?;
+    let now = Timestamp::parse(&fixture.now)?;
+    let scenario = fixture
+        .scenarios
+        .iter()
+        .find(|scenario| scenario.name == "witness_and_controller_report")
+        .ok_or("no such scenario")?;
+    let mut kevery = Kevery::new();
+    for step in &scenario.steps {
+        offer(&mut kevery, step, &now)??;
+    }
+    let kept = &scenario.steps.last().ok_or("no steps")?.after.key_state_notices;
+    let identifier = IdentifierPrefix::from_qb64(&kept.first().ok_or("no notice")?.identifier)?;
+    let watchers = kept
+        .iter()
+        .map(|notice| IdentifierPrefix::from_qb64(&notice.source))
+        .collect::<Result<Vec<_>, _>>()?;
+    let Adjudication::Consistent(reports) = kevery.adjudicate(&identifier, &watchers, None)? else {
+        return Err("the reports were not consistent".into());
+    };
+    assert_eq!(reports.len(), 2);
+    assert!(matches!(
+        kevery.adjudicate(&identifier, &watchers, Some(3)),
+        Err(KelError::ThresholdAboveWatchers {
+            threshold: 3,
+            watchers: 2
+        })
+    ));
     Ok(())
 }

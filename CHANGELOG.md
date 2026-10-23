@@ -34,6 +34,9 @@
   their source, newer than the one kept before, and consistent with the local log, escrowing those
   awaiting a transferable signer, verified against keripy; unlike keripy, an older notice never
   replaces a newer one.
+- Adjudication: `adjudicate` and `Kevery::adjudicate` decide, from what an identifier's watchers
+  last reported, whether the local state is consistent, lagging, due an update or contradicted,
+  verified against keripy's `Adjudicator`.
 - Store traits: `Kevery` keeps its logs, escrows and waiting receipts behind `KelStore`,
   `EscrowStore` and `ReceiptStore`, with `MemoryStore` as the default; a failing store is reported
   as `KelError::Store`.

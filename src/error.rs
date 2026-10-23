@@ -145,6 +145,15 @@ pub enum KelError {
     SupersededWithoutDelegation,
     /// An event contradicts one already accepted at its sequence number.
     LikelyDuplicitous,
+    /// No inception of the identifier has been accepted.
+    IdentifierUnknown,
+    /// An adjudication threshold asks for more watchers than there are.
+    ThresholdAboveWatchers {
+        /// The threshold.
+        threshold: usize,
+        /// The watchers.
+        watchers: usize,
+    },
     /// A reply's route is not `/ksn/{source}`; other routes are the application's.
     UnsupportedReplyRoute,
     /// A key state notice comes from a source the trust policy does not trust: not the identifier
@@ -339,6 +348,10 @@ impl fmt::Display for KelError {
                 formatter.write_str("superseded event has no delegating event to compare with")
             }
             Self::LikelyDuplicitous => formatter.write_str("event contradicts one already accepted"),
+            Self::IdentifierUnknown => formatter.write_str("identifier has no accepted inception"),
+            Self::ThresholdAboveWatchers { threshold, watchers } => {
+                write!(formatter, "threshold {threshold} is above the {watchers} watchers")
+            }
             Self::UnsupportedReplyRoute => formatter.write_str("reply route is not a key state notice"),
             Self::UntrustedKeyStateSource => formatter.write_str("key state notice comes from an untrusted source"),
             Self::StaleKeyState => formatter.write_str("key state notice is older than the local log"),
