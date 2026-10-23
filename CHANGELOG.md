@@ -34,6 +34,9 @@
   their source, newer than the one kept before, and consistent with the local log, escrowing those
   awaiting a transferable signer, verified against keripy; unlike keripy, an older notice never
   replaces a newer one.
+- End roles and locations: `Kevery` keeps `/end/role/add` and `/end/role/cut` replies signed by
+  the controller and `/loc/scheme` replies signed by the endpoint, the latest of each, verified
+  against keripy.
 - Adjudication: `adjudicate` and `Kevery::adjudicate` decide, from what an identifier's watchers
   last reported, whether the local state is consistent, lagging, due an update or contradicted,
   verified against keripy's `Adjudicator`.

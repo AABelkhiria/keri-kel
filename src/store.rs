@@ -7,7 +7,8 @@
 //! - [`EscrowStore`]: events that cannot be decided yet, keyed by identifier and SAID, with the
 //!   order they entered their escrow;
 //! - [`ReceiptStore`]: receipt signatures waiting for the events they name;
-//! - [`ReplyStore`]: the key state notices kept, per identifier and reporting source, and replies
+//! - [`ReplyStore`]: the replies kept, key state notices per identifier and reporting source, end
+//!   roles per controller, role and endpoint, locations per endpoint and scheme, and replies
 //!   waiting for their signer's establishment event or more signatures.
 //!
 //! [`Store`] is all four together, which is what a `Kevery` takes. [`MemoryStore`] keeps
@@ -24,10 +25,12 @@ use std::error::Error;
 
 use keri_protocol::event::timestamp::Timestamp;
 
+use crate::endpoint::{EndRoleRecord, LocationRecord};
 use crate::error::Escrow;
 use crate::kever::Kever;
 use crate::kevery::{EscrowedEvent, LoggedEvent, WaitingReceipt};
-use crate::notice::{EscrowedReply, KeyStateNotice};
+use crate::notice::KeyStateNotice;
+use crate::reply::EscrowedReply;
 
 /// Why a store could not read or write.
 #[derive(Debug)]
@@ -200,9 +203,58 @@ pub trait ReceiptStore {
     fn expire_receipts(&mut self, cutoff: &Timestamp) -> Result<usize, StoreError>;
 }
 
-/// Key state notices kept and replies waiting, keripy's `knas`, `ksns`, `kdts`, `rpys`, `sdts`,
-/// `ssgs` and `rpes` tables. Identifiers, sources and SAIDs are qb64 text.
+/// Replies kept and waiting: key state notices, end roles and locations, keripy's `knas`, `ksns`,
+/// `kdts`, `eans`, `ends`, `lans`, `locs`, `rpys`, `sdts`, `ssgs` and `rpes` tables. Identifiers,
+/// sources and SAIDs are qb64 text; roles and schemes are their names.
 pub trait ReplyStore {
+    /// Returns the end role kept for `controller`, `role` and `endpoint`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be read.
+    fn end_role(&self, controller: &str, role: &str, endpoint: &str) -> Result<Option<EndRoleRecord>, StoreError>;
+
+    /// Returns every end role kept for `controller`, with its role and endpoint, in any order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be read.
+    fn end_roles(&self, controller: &str) -> Result<Vec<(String, String, EndRoleRecord)>, StoreError>;
+
+    /// Keeps an end role, replacing any earlier one for the same controller, role and endpoint.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be written.
+    fn put_end_role(
+        &mut self,
+        controller: &str,
+        role: &str,
+        endpoint: &str,
+        record: EndRoleRecord,
+    ) -> Result<(), StoreError>;
+
+    /// Returns the location kept for `endpoint` and `scheme`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be read.
+    fn location(&self, endpoint: &str, scheme: &str) -> Result<Option<LocationRecord>, StoreError>;
+
+    /// Returns every location kept for `endpoint`, with its scheme, in any order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be read.
+    fn locations(&self, endpoint: &str) -> Result<Vec<(String, LocationRecord)>, StoreError>;
+
+    /// Keeps a location, replacing any earlier one for the same endpoint and scheme.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be written.
+    fn put_location(&mut self, endpoint: &str, scheme: &str, record: LocationRecord) -> Result<(), StoreError>;
+
     /// Returns the notice kept from `source` about `identifier`.
     ///
     /// # Errors
@@ -286,6 +338,8 @@ pub struct MemoryStore {
     arrivals: u64,
     receipts: Vec<WaitingReceipt>,
     notices: BTreeMap<(String, String), KeyStateNotice>,
+    end_roles: BTreeMap<(String, String, String), EndRoleRecord>,
+    locations: BTreeMap<(String, String), LocationRecord>,
     replies: BTreeMap<String, EscrowedReply>,
 }
 
@@ -425,6 +479,52 @@ impl ReceiptStore for MemoryStore {
 }
 
 impl ReplyStore for MemoryStore {
+    fn end_role(&self, controller: &str, role: &str, endpoint: &str) -> Result<Option<EndRoleRecord>, StoreError> {
+        Ok(self
+            .end_roles
+            .get(&(controller.to_owned(), role.to_owned(), endpoint.to_owned()))
+            .cloned())
+    }
+
+    fn end_roles(&self, controller: &str) -> Result<Vec<(String, String, EndRoleRecord)>, StoreError> {
+        Ok(self
+            .end_roles
+            .iter()
+            .filter(|((granting, _, _), _)| granting == controller)
+            .map(|((_, role, endpoint), record)| (role.clone(), endpoint.clone(), record.clone()))
+            .collect())
+    }
+
+    fn put_end_role(
+        &mut self,
+        controller: &str,
+        role: &str,
+        endpoint: &str,
+        record: EndRoleRecord,
+    ) -> Result<(), StoreError> {
+        self.end_roles
+            .insert((controller.to_owned(), role.to_owned(), endpoint.to_owned()), record);
+        Ok(())
+    }
+
+    fn location(&self, endpoint: &str, scheme: &str) -> Result<Option<LocationRecord>, StoreError> {
+        Ok(self.locations.get(&(endpoint.to_owned(), scheme.to_owned())).cloned())
+    }
+
+    fn locations(&self, endpoint: &str) -> Result<Vec<(String, LocationRecord)>, StoreError> {
+        Ok(self
+            .locations
+            .iter()
+            .filter(|((located, _), _)| located == endpoint)
+            .map(|((_, scheme), record)| (scheme.clone(), record.clone()))
+            .collect())
+    }
+
+    fn put_location(&mut self, endpoint: &str, scheme: &str, record: LocationRecord) -> Result<(), StoreError> {
+        self.locations.insert((endpoint.to_owned(), scheme.to_owned()), record);
+        Ok(())
+    }
+
     fn key_state_notice(&self, identifier: &str, source: &str) -> Result<Option<KeyStateNotice>, StoreError> {
         Ok(self.notices.get(&(identifier.to_owned(), source.to_owned())).cloned())
     }

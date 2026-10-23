@@ -94,6 +94,10 @@ pub enum Processed {
     Receipted,
     /// The key state notice was kept, replacing any earlier one from the same source.
     KeyStateAccepted,
+    /// The end role grant or withdrawal was kept, replacing any earlier one for the same role.
+    EndRoleAccepted,
+    /// The location was kept, replacing any earlier one for the same scheme.
+    LocationAccepted,
     /// The message was kept for later, for the reason given.
     Escrowed(Escrow),
 }
@@ -890,7 +894,13 @@ impl<S: Store> Kevery<S> {
                         .map_err(KelError::store)?;
                     accepted += 1;
                 }
-                Ok(Processed::Escrowed(_) | Processed::Receipted | Processed::KeyStateAccepted) => {}
+                Ok(
+                    Processed::Escrowed(_)
+                    | Processed::Receipted
+                    | Processed::KeyStateAccepted
+                    | Processed::EndRoleAccepted
+                    | Processed::LocationAccepted,
+                ) => {}
                 Err(error @ KelError::Store { .. }) => return Err(error),
                 Err(_) => {
                     self.store

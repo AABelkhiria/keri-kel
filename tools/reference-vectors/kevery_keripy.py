@@ -206,6 +206,15 @@ class Scenario:
         if notices:
             snapshot["key_state_notices"] = sorted(notices, key=lambda notice: (notice["identifier"],
                                                                                 notice["source"]))
+        # End roles and locations keripy accepted.
+        ends = [{"controller": cid, "role": role, "endpoint": eid, "allowed": record.allowed}
+                for (cid, role, eid), record in self.db.ends.getItemIter()]
+        if ends:
+            snapshot["end_roles"] = sorted(ends, key=lambda end: (end["controller"], end["role"], end["endpoint"]))
+        locations = [{"endpoint": eid, "scheme": scheme, "url": record.url}
+                     for (eid, scheme), record in self.db.locs.getItemIter()]
+        if locations:
+            snapshot["locations"] = sorted(locations, key=lambda location: (location["endpoint"], location["scheme"]))
         replies = sum(1 for _ in self.db.rpes.getItemIter())
         if replies:
             snapshot["escrowed_replies"] = replies

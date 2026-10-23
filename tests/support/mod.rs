@@ -3,7 +3,7 @@
 //! The fixtures under `fixtures/kevery-keripy`, `fixtures/delegation-keripy` and
 //! `fixtures/out-of-order-keripy`, `fixtures/recovery-keripy` and
 //! `fixtures/delegated-recovery-keripy`, `fixtures/validator-receipts-keripy` and
-//! `fixtures/key-state-notices-keripy` share one shape:
+//! `fixtures/key-state-notices-keripy` and `fixtures/endpoints-keripy` share one shape:
 //! each step is a message, the outcome the port must reach, and a snapshot of what keripy held
 //! after processing it and its escrows.
 
@@ -32,6 +32,21 @@ pub(crate) struct Scenario {
 #[derive(Debug, Deserialize)]
 pub(crate) struct Trust {
     pub(crate) watchers: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+pub(crate) struct EndRoleSnapshot {
+    pub(crate) controller: String,
+    pub(crate) role: String,
+    pub(crate) endpoint: String,
+    pub(crate) allowed: bool,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+pub(crate) struct LocationSnapshot {
+    pub(crate) endpoint: String,
+    pub(crate) scheme: String,
+    pub(crate) url: String,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -67,6 +82,10 @@ pub(crate) struct Snapshot {
     pub(crate) key_state_notices: Vec<NoticeSnapshot>,
     #[serde(default)]
     pub(crate) escrowed_replies: usize,
+    #[serde(default)]
+    pub(crate) end_roles: Vec<EndRoleSnapshot>,
+    #[serde(default)]
+    pub(crate) locations: Vec<LocationSnapshot>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -137,6 +156,9 @@ pub(crate) fn outcome_matches(result: &Result<Processed, KelError>, expected: &s
         "PriorMismatch" => matches!(result, Err(KelError::PriorMismatch)),
         "SupersedingDelegationNotLater" => matches!(result, Err(KelError::SupersedingDelegationNotLater)),
         "KeyStateAccepted" => matches!(result, Ok(Processed::KeyStateAccepted)),
+        "EndRoleAccepted" => matches!(result, Ok(Processed::EndRoleAccepted)),
+        "LocationAccepted" => matches!(result, Ok(Processed::LocationAccepted)),
+        "InvalidReply" => matches!(result, Err(KelError::Reply { .. })),
         "Escrowed:UnverifiedReply" => matches!(result, Ok(Processed::Escrowed(Escrow::UnverifiedReply))),
         "UnverifiedReply" => matches!(result, Err(KelError::UnverifiedReply)),
         "StaleKeyState" => matches!(result, Err(KelError::StaleKeyState)),
@@ -227,6 +249,32 @@ pub(crate) fn compare(kevery: &Kevery, expected: &Snapshot, context: &str) -> Re
     }
     notices.sort_by(|left, right| (&left.identifier, &left.source).cmp(&(&right.identifier, &right.source)));
     assert_eq!(notices, expected.key_state_notices, "{context}: key state notices");
+    let mut end_roles = Vec::new();
+    let mut locations = Vec::new();
+    for identifier in &expected.states {
+        let prefix = IdentifierPrefix::from_qb64(&identifier.identifier)?;
+        for (role, endpoint, record) in kevery.end_roles(&prefix)? {
+            end_roles.push(EndRoleSnapshot {
+                controller: identifier.identifier.clone(),
+                role: role.as_str().to_owned(),
+                endpoint: endpoint.qb64()?,
+                allowed: record.allowed(),
+            });
+        }
+        for (scheme, record) in kevery.locations(&prefix)? {
+            locations.push(LocationSnapshot {
+                endpoint: identifier.identifier.clone(),
+                scheme: scheme.as_str().to_owned(),
+                url: record.url().to_owned(),
+            });
+        }
+    }
+    end_roles.sort_by(|left, right| {
+        (&left.controller, &left.role, &left.endpoint).cmp(&(&right.controller, &right.role, &right.endpoint))
+    });
+    locations.sort_by(|left, right| (&left.endpoint, &left.scheme).cmp(&(&right.endpoint, &right.scheme)));
+    assert_eq!(end_roles, expected.end_roles, "{context}: end roles");
+    assert_eq!(locations, expected.locations, "{context}: locations");
     for identifier in &expected.states {
         let (state, events) = held(kevery, &identifier.identifier)?;
         assert_eq!(state, identifier.state_json, "{context}: key state");

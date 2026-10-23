@@ -16,7 +16,9 @@ this crate validates.
 | `event` | Reads a key event off the wire, verifying its SAID and, for an inception, its prefix |
 | `kever` | One identifier's key state, extended event by event under keripy's rules |
 | `kevery` | Many identifiers' logs: routes events and receipts, approves delegated events against their delegators' logs, and escrows what cannot be decided yet |
+| `reply` | How a reply is verified and escrowed, for every route a `Kevery` keeps |
 | `notice` | Key state notices: which `/ksn` replies a `Kevery` keeps, and whose it trusts |
+| `endpoint` | End roles and locations: which `/end/role` and `/loc/scheme` replies a `Kevery` keeps |
 | `adjudication` | Whether watchers' reports of an identifier agree with the local state, lag, call for an update, or show duplicity |
 | `store` | Where a `Kevery` keeps its logs, escrows, waiting receipts and notices: traits, and an in-memory store |
 | `error` | Why an event was refused, and whether waiting could help |
@@ -60,13 +62,17 @@ trusts any source, as keripy's witnesses do; `NoticeTrust::Watchers` keeps only 
 its witnesses' and the configured watchers', as keripy's controllers do. One keripy defect is not
 followed: keripy never compares a notice's date with the one it replaces, and keeps older ones.
 
+A `Kevery` also keeps where identifiers are served: end role grants and withdrawals, signed by
+the controller, per controller, role and endpoint, and locations, signed by the endpoint, per
+endpoint and scheme, the latest of each, as keripy does.
+
 `adjudicate` compares what an identifier's watchers last reported with the local state, as keripy's
 `Adjudicator` does: duplicity first, then watchers ahead, which call for an update when enough of
 them agree, then watchers behind. `Kevery::adjudicate` does so from the notices it kept.
 
 Every message kind a key event log needs is processed: inceptions, rotations and interactions,
-delegated or not, receipts from witnesses, non-transferable identifiers and validators, and key
-state notices.
+delegated or not, receipts from witnesses, non-transferable identifiers and validators, key state
+notices, end roles and locations. Watcher observation registrations are the application's.
 
 Nothing here reads a clock or a network. The first-seen time is an argument. A `Kever` holds its
 state in the value. A `Kevery` keeps everything in a store: `Kevery::new()` keeps it in memory, and

@@ -7,8 +7,8 @@ use std::cell::Cell;
 use std::error::Error;
 
 use keri_kel::{
-    Escrow, EscrowStore, EscrowedEvent, EscrowedReply, KelError, KelStore, Kever, Kevery, KeyStateNotice, LoggedEvent,
-    MemoryStore, ReceiptStore, ReplyStore, StoreError, WaitingReceipt,
+    EndRoleRecord, Escrow, EscrowStore, EscrowedEvent, EscrowedReply, KelError, KelStore, Kever, Kevery,
+    KeyStateNotice, LocationRecord, LoggedEvent, MemoryStore, ReceiptStore, ReplyStore, StoreError, WaitingReceipt,
 };
 use keri_protocol::event::timestamp::Timestamp;
 use keri_protocol::stream::Message;
@@ -55,6 +55,10 @@ fn a_store_handed_on_carries_everything() -> Result<(), Box<dyn Error>> {
             env!("CARGO_MANIFEST_DIR"),
             "/fixtures/key-state-notices-keripy/v1.json"
         )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/fixtures/endpoints-keripy/v1.json"
+        )),
     ];
     let mut steps = 0;
     for json in fixtures {
@@ -66,7 +70,7 @@ fn a_store_handed_on_carries_everything() -> Result<(), Box<dyn Error>> {
             Kevery::with_store(kevery.into_store()).trusting(trust)
         })?;
     }
-    assert_eq!(steps, 176);
+    assert_eq!(steps, 193);
     Ok(())
 }
 
@@ -181,6 +185,38 @@ impl ReceiptStore for Failing {
 }
 
 impl ReplyStore for Failing {
+    fn end_role(&self, controller: &str, role: &str, endpoint: &str) -> Result<Option<EndRoleRecord>, StoreError> {
+        self.inner.end_role(controller, role, endpoint)
+    }
+
+    fn end_roles(&self, controller: &str) -> Result<Vec<(String, String, EndRoleRecord)>, StoreError> {
+        self.inner.end_roles(controller)
+    }
+
+    fn put_end_role(
+        &mut self,
+        controller: &str,
+        role: &str,
+        endpoint: &str,
+        record: EndRoleRecord,
+    ) -> Result<(), StoreError> {
+        self.write()?;
+        self.inner.put_end_role(controller, role, endpoint, record)
+    }
+
+    fn location(&self, endpoint: &str, scheme: &str) -> Result<Option<LocationRecord>, StoreError> {
+        self.inner.location(endpoint, scheme)
+    }
+
+    fn locations(&self, endpoint: &str) -> Result<Vec<(String, LocationRecord)>, StoreError> {
+        self.inner.locations(endpoint)
+    }
+
+    fn put_location(&mut self, endpoint: &str, scheme: &str, record: LocationRecord) -> Result<(), StoreError> {
+        self.write()?;
+        self.inner.put_location(endpoint, scheme, record)
+    }
+
     fn key_state_notice(&self, identifier: &str, source: &str) -> Result<Option<KeyStateNotice>, StoreError> {
         self.inner.key_state_notice(identifier, source)
     }

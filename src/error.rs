@@ -154,7 +154,8 @@ pub enum KelError {
         /// The watchers.
         watchers: usize,
     },
-    /// A reply's route is not `/ksn/{source}`; other routes are the application's.
+    /// A reply's route is not one a `Kevery` keeps: `/ksn`, `/end/role` or `/loc/scheme`. A
+    /// watcher's observation registrations are the application's.
     UnsupportedReplyRoute,
     /// A key state notice comes from a source the trust policy does not trust: not the identifier
     /// itself, not one of its witnesses, and not a configured watcher.
@@ -352,7 +353,7 @@ impl fmt::Display for KelError {
             Self::ThresholdAboveWatchers { threshold, watchers } => {
                 write!(formatter, "threshold {threshold} is above the {watchers} watchers")
             }
-            Self::UnsupportedReplyRoute => formatter.write_str("reply route is not a key state notice"),
+            Self::UnsupportedReplyRoute => formatter.write_str("reply route is not kept here"),
             Self::UntrustedKeyStateSource => formatter.write_str("key state notice comes from an untrusted source"),
             Self::StaleKeyState => formatter.write_str("key state notice is older than the local log"),
             Self::KeyStateMismatch => formatter.write_str("key state notice contradicts the local log"),
