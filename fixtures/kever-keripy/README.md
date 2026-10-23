@@ -48,7 +48,7 @@ them.
 
 ## Contents
 
-`scenarios` records thirteen scenarios, thirty-seven steps in all. Each refused step names the Rust
+`scenarios` records fourteen scenarios, forty-one steps in all. Each refused step names the Rust
 error category the port must return for it.
 
 - `single_key_lifecycle`: inception, interaction, rotation, interaction, rotation, then one refused
@@ -69,11 +69,7 @@ error category the port must return for it.
 - `non_transferable`: a basic non-transferable identifier, which takes no event after inception.
 - Five inceptions keripy's validator refuses: a threshold above the keys, a duplicate witness, a
   witness threshold above the set or without witnesses, and a non-zero sequence number.
-
-`divergence_recovery_rotation` records the one behaviour the port does not follow yet: keripy
-accepts a rotation that replaces an interaction already accepted at its sequence number, a recovery
-rotation, and the port refuses it with `RecoveryUnsupported` until recovery is ported with its own
-fixtures. Generating these vectors also showed that keripy skips every witness-change check on a
-recovery rotation.
+- `recovery_rotation`: a rotation at the second interaction's sequence number, following the
+  first interaction and signed with the committed next key, supersedes the second interaction.
 
 Rust tests consume the checked-in fixture and require neither Python nor network access.

@@ -253,17 +253,19 @@ def main():
         scenarios.append(Scenario(db, name, "An inception keripy's validator refuses.")
                          .offer("inception", serder, signers=[(0, h0)], expect=category).record())
 
-    # A recovery rotation, which keripy accepts and this port refuses until recovery is ported.
+    # A recovery rotation superseding an interaction.
     r0, r1, r2 = signer(90), signer(91), signer(92)
     icp = eventing.incept(keys=[r0.verfer.qb64], ndigs=[digest(r1)], code=MtrDex.Blake3_256)
     ixn1 = eventing.interact(pre=icp.pre, dig=icp.said, sn=1)
     ixn2 = eventing.interact(pre=icp.pre, dig=ixn1.said, sn=2)
     recovery = eventing.rotate(pre=icp.pre, keys=[r1.verfer.qb64], dig=ixn1.said, sn=2, ndigs=[digest(r2)])
-    recovery_scenario = Scenario(db, "recovery_rotation",
-                                 "keripy accepts a rotation that replaces an interaction already accepted at its"
-                                 " sequence number; the port refuses it as `RecoveryUnsupported`.")
-    recovery_scenario.offer("inception", icp, signers=[(0, r0)]).offer("interaction", ixn1, signers=[(0, r0)]) \
-        .offer("second_interaction", ixn2, signers=[(0, r0)]).offer("recovery_rotation", recovery, signers=[(0, r1)])
+    scenarios.append(Scenario(db, "recovery_rotation",
+                              "A rotation at the second interaction's sequence number, following the first"
+                              " interaction and signed with the committed next key, supersedes the second"
+                              " interaction.")
+                     .offer("inception", icp, signers=[(0, r0)]).offer("interaction", ixn1, signers=[(0, r0)])
+                     .offer("second_interaction", ixn2, signers=[(0, r0)])
+                     .offer("recovery_rotation", recovery, signers=[(0, r1)]).record())
 
     fixture = {
         "schema_version": 1,
@@ -274,7 +276,6 @@ def main():
         "sources": ["src/keri/core/eventing.py", "src/keri/core/serdering.py"],
         "first_seen": STAMP,
         "scenarios": scenarios,
-        "divergence_recovery_rotation": {**recovery_scenario.record(), "rust_error_category": "RecoveryUnsupported"},
     }
     db.close(clear=True)
 

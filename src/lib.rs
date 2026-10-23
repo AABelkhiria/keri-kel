@@ -21,7 +21,11 @@
 //! everything offered for them, until more arrive. An event contradicting an accepted one is kept
 //! aside as likely duplicitous.
 //!
-//! Not yet covered: recovery rotations, and receipts from transferable identifiers.
+//! A recovery rotation, signed with the keys the latest establishment event committed to, may
+//! supersede the interactions accepted since; [`Kevery`] keeps the superseded events apart.
+//!
+//! Not yet covered: a delegated rotation superseding an accepted one, and receipts from
+//! transferable identifiers.
 
 #![forbid(unsafe_code)]
 

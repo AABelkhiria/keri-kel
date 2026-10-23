@@ -25,7 +25,8 @@ A `Kever` accepts:
 - rotations that reveal enough of the keys the prior establishment event committed to, including
   partial rotations;
 - witnessed events whose witness signatures are attached, against the witness threshold;
-- witness lists changed by rotation, and the `EO` and `DND` configuration traits.
+- witness lists changed by rotation, and the `EO` and `DND` configuration traits;
+- recovery rotations, which supersede interactions accepted since the latest establishment event.
 
 A `Kevery` holds many identifiers' logs. It accepts each identifier's events in turn, adds the
 signatures a duplicate or a receipt brings to the stored event, and keeps an event that is short of
@@ -39,7 +40,10 @@ An event that arrives before the events it follows waits for them, unverified, a
 sequence order once they are accepted. An event contradicting one already accepted is kept aside as
 likely duplicitous and never accepted.
 
-Not covered yet: recovery rotations, and receipts from transferable identifiers.
+A recovery rotation leaves the events it superseded in the `Kevery`, apart from the log.
+
+Not covered yet: a delegated rotation superseding an accepted one, and receipts from transferable
+identifiers.
 
 Nothing here reads a clock, a database or a network. The first-seen time is an argument and the
 state lives in the value.

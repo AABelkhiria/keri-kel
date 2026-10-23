@@ -24,7 +24,6 @@ struct Fixture {
     sources: Vec<String>,
     first_seen: String,
     scenarios: Vec<Scenario>,
-    divergence_recovery_rotation: Divergence,
 }
 
 #[derive(Debug, Deserialize)]
@@ -32,14 +31,6 @@ struct Scenario {
     name: String,
     note: String,
     steps: Vec<Step>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Divergence {
-    name: String,
-    note: String,
-    steps: Vec<Step>,
-    rust_error_category: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -89,7 +80,6 @@ fn category_matches(error: &KelError, category: &str) -> Result<bool, Box<dyn Er
         "PriorMismatch" => matches!(error, KelError::PriorMismatch),
         "OutOfOrder" => matches!(error, KelError::OutOfOrder { .. }),
         "Stale" => matches!(error, KelError::Stale { .. }),
-        "RecoveryUnsupported" => matches!(error, KelError::RecoveryUnsupported),
         "NoVerifiedSignatures" => matches!(error, KelError::NoVerifiedSignatures),
         "NotFullySigned" => matches!(error, KelError::NotFullySigned),
         "PriorNextNotSatisfied" => matches!(error, KelError::PriorNextNotSatisfied),
@@ -150,7 +140,7 @@ fn fixture_metadata_matches_the_pinned_keripy_reference() -> Result<(), Box<dyn 
 fn every_scenario_ends_where_keripy_ends() -> Result<(), Box<dyn Error>> {
     let fixture = fixture()?;
     let first_seen = Timestamp::parse(&fixture.first_seen)?;
-    assert_eq!(fixture.scenarios.len(), 13);
+    assert_eq!(fixture.scenarios.len(), 14);
     let mut steps = 0;
     for scenario in &fixture.scenarios {
         assert_ne!(scenario.note, "");
@@ -191,7 +181,7 @@ fn every_scenario_ends_where_keripy_ends() -> Result<(), Box<dyn Error>> {
             }
         }
     }
-    assert_eq!(steps, 37);
+    assert_eq!(steps, 41);
     Ok(())
 }
 
@@ -202,31 +192,4 @@ fn signature_and_witness_shortfalls_are_escrowable() {
     assert_eq!(KelError::NotFullyWitnessed.escrow(), Some(Escrow::PartiallyWitnessed));
     assert_eq!(KelError::PriorMismatch.escrow(), None);
     assert_eq!(KelError::NoVerifiedSignatures.escrow(), None);
-}
-
-#[test]
-fn a_recovery_rotation_is_refused_where_keripy_accepts_it() -> Result<(), Box<dyn Error>> {
-    let fixture = fixture()?;
-    let first_seen = Timestamp::parse(&fixture.first_seen)?;
-    let divergence = &fixture.divergence_recovery_rotation;
-    assert_eq!(divergence.name, "recovery_rotation");
-    assert_ne!(divergence.note, "");
-    let (last, earlier) = divergence.steps.split_last().ok_or("divergence has no steps")?;
-    let mut kever = None;
-    for step in earlier {
-        assert!(step.keripy.accepted);
-        offer(&mut kever, step, &first_seen)??;
-    }
-    assert!(
-        last.keripy.accepted,
-        "keripy is recorded accepting the recovery rotation"
-    );
-    let Err(error) = offer(&mut kever, last, &first_seen)? else {
-        return Err("the port accepted a recovery rotation".into());
-    };
-    assert!(
-        category_matches(&error, &divergence.rust_error_category)?,
-        "produced {error:?}"
-    );
-    Ok(())
 }

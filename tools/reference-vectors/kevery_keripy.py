@@ -130,9 +130,16 @@ class Scenario:
                     event["delegation"] = {"sequence_number": seqner.sn,
                                            "said": bytes(source)[len(seqner.qb64b):].decode()}
                 events.append(event)
-            states.append({"identifier": pre,
-                           "state_json": json.dumps(asdict(kever.state()), separators=(",", ":")),
-                           "events": events})
+            state = {"identifier": pre,
+                     "state_json": json.dumps(asdict(kever.state()), separators=(",", ":")),
+                     "events": events}
+            # Events a recovery rotation superseded stay in keripy's log beside the ones that
+            # replaced them.
+            current = {event["said"] for event in events}
+            superseded = sorted({bytes(dig).decode() for dig in self.db.getKelIter(pre)} - current)
+            if superseded:
+                state["superseded"] = superseded
+            states.append(state)
         escrowed = {(bytes(key), bytes(dig)) for key, dig in self.db.getPseItemIter(key=b"")}
         escrowed |= {(bytes(key), bytes(dig)) for key, dig in self.db.getPweItemIter(key=b"")}
         escrowed |= {(bytes(snKey(pre, sn)), dig.encode()) for (pre,), sn, dig in self.db.pdes.getOnItemIter(keys=b"")}

@@ -21,3 +21,5 @@
 - Out-of-order and likely-duplicitous escrows: `Kevery` keeps an event that arrives before the
   events it follows until they are accepted, keeps an event contradicting an accepted one aside,
   and retries escrows in keripy's order, verified against keripy.
+- Recovery rotations: a rotation following an event accepted since the latest establishment event
+  supersedes the events after it; `Kevery::superseded` keeps them, verified against keripy.

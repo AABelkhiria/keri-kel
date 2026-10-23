@@ -35,8 +35,13 @@
 //! This ports keripy's `Kevery` (`src/keri/core/eventing.py`): `processEvent`, `processReceipt`,
 //! `processAttachedReceiptCouples`, `Kever.validateDelegation`, and the out-of-order, partially
 //! signed, partially witnessed, partially delegated, likely-duplicitous and unverified receipt
-//! escrows with their processors. A rotation superseding an accepted one, a recovery, is refused
-//! with [`KelError::RecoveryUnsupported`].
+//! escrows with their processors.
+//!
+//! A recovery rotation supersedes interactions accepted since the latest establishment event: it
+//! is accepted at the sequence number of the first one it supersedes, and the superseded events are
+//! kept apart ([`Kevery::superseded`]), as keripy keeps them in its log. A delegated rotation
+//! superseding an accepted event is refused with [`KelError::RecoveryUnsupported`] until keripy's
+//! rules for it are ported.
 //!
 //! One behaviour differs. When a witness's receipt couple is attached to an event, keripy's
 //! `processAttachedReceiptCouples` compares the couple's key, a string, against a list of prefix
@@ -144,11 +149,12 @@ impl LoggedEvent {
     }
 }
 
-/// One identifier's key state and accepted events.
+/// One identifier's key state, accepted events, and the events recovery rotations superseded.
 #[derive(Clone, Debug)]
 struct Log {
     kever: Kever,
     events: BTreeMap<u128, LoggedEvent>,
+    superseded: Vec<LoggedEvent>,
 }
 
 /// An event waiting, with everything offered for it so far.
@@ -270,6 +276,7 @@ impl Kevery {
                         Log {
                             kever,
                             events: BTreeMap::from([(0, logged)]),
+                            superseded: Vec::new(),
                         },
                     );
                     self.unescrow(&identifier, event.said());
@@ -319,6 +326,10 @@ impl Kevery {
                 let logged = logged(raw, &event, verified, &kever, &offer.first_seen_at);
                 if let Some(log) = self.logs.get_mut(&identifier) {
                     log.kever = kever;
+                    // A recovery rotation supersedes the event at its sequence number and every one
+                    // after it.
+                    let superseded = log.events.split_off(&found);
+                    log.superseded.extend(superseded.into_values());
                     log.events.insert(found, logged);
                 }
                 self.unescrow(&identifier, event.said());
@@ -648,6 +659,17 @@ impl Kevery {
     pub fn logged(&self, identifier: &IdentifierPrefix, sequence_number: u128) -> Option<&LoggedEvent> {
         let identifier = identifier.qb64().ok()?;
         self.logs.get(&identifier)?.events.get(&sequence_number)
+    }
+
+    /// Returns the events of an identifier that recovery rotations superseded, in the order they
+    /// were superseded.
+    #[must_use]
+    pub fn superseded(&self, identifier: &IdentifierPrefix) -> &[LoggedEvent] {
+        identifier
+            .qb64()
+            .ok()
+            .and_then(|identifier| self.logs.get(&identifier))
+            .map_or(&[], |log| log.superseded.as_slice())
     }
 
     /// Returns how many events are waiting in escrow, for any reason.

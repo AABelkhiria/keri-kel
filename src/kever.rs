@@ -12,6 +12,9 @@
 //!   establishment event, the current keys for an interaction), meet the signing threshold;
 //! - for a rotation, the same signatures also expose enough of the keys the prior establishment
 //!   event committed to as next keys, to meet the prior next-key threshold;
+//! - a rotation may also land on a sequence number already taken by an interaction accepted since
+//!   the latest establishment event, following the event before it: a recovery rotation, which
+//!   supersedes that interaction and every event after it;
 //! - its witness signatures, verified against the witness list in force, meet the witness
 //!   threshold;
 //! - for a delegated inception, or a rotation of a delegated identifier, its delegator has
@@ -59,6 +62,9 @@ pub struct Kever {
     cuts: Vec<IdentifierPrefix>,
     adds: Vec<IdentifierPrefix>,
     last_establishment: (u128, Said),
+    /// The SAIDs of the latest establishment event and every event since, which a recovery
+    /// rotation may follow.
+    since_establishment: Vec<Said>,
     establishment_only: bool,
     do_not_delegate: bool,
     delegator: Option<IdentifierPrefix>,
@@ -131,6 +137,8 @@ struct Rotation {
     signing_threshold: SigningThreshold,
     witness_threshold: u32,
     witnesses: Vec<IdentifierPrefix>,
+    cuts: Vec<IdentifierPrefix>,
+    adds: Vec<IdentifierPrefix>,
 }
 
 impl Kever {
@@ -218,6 +226,7 @@ impl Kever {
             cuts: Vec::new(),
             adds: Vec::new(),
             last_establishment: (0, event.said()),
+            since_establishment: vec![event.said()],
             establishment_only: event.establishment_only(),
             do_not_delegate: event.do_not_delegate(),
             delegator: event.delegator().cloned(),
@@ -245,7 +254,8 @@ impl Kever {
     /// [`KelError::UndelegatedRotation`] for a plain rotation of a delegated identifier, and
     /// [`KelError::DelegatorUnknown`] for its delegated rotation, whose delegator's log only a
     /// [`Kevery`](crate::Kevery) can consult;
-    /// [`KelError::OutOfOrder`], [`KelError::Stale`] or [`KelError::RecoveryUnsupported`] when the
+    /// [`KelError::OutOfOrder`], [`KelError::Stale`] or, for a delegated rotation superseding an
+    /// accepted event, [`KelError::RecoveryUnsupported`] when the
     /// event does not follow the latest one; [`KelError::PriorMismatch`];
     /// [`KelError::EstablishmentOnly`]; the establishment checks of [`Self::incept`] and, for a
     /// rotation, [`KelError::CutNotAWitness`] and [`KelError::ConflictingWitnessLists`];
@@ -330,9 +340,10 @@ impl Kever {
         self.next_threshold = next_threshold(event)?;
         self.witnesses = rotation.witnesses;
         self.witness_threshold = rotation.witness_threshold;
-        self.cuts = event.cuts().to_vec();
-        self.adds = event.adds().to_vec();
+        self.cuts = rotation.cuts;
+        self.adds = rotation.adds;
         self.last_establishment = (event.sequence_number(), event.said());
+        self.since_establishment = vec![event.said()];
         self.first_seen = self.first_seen.saturating_add(1);
         self.first_seen_at = offer.first_seen_at.clone();
         Ok(Verified {
@@ -349,7 +360,8 @@ impl Kever {
         if found > next {
             return Err(KelError::OutOfOrder { expected: next, found });
         }
-        if found < next {
+        let recovery = found < next;
+        if recovery {
             // A delegated rotation may also supersede the latest establishment event itself.
             let stale = if event.kind() == EventKind::DelegatedRotation {
                 found < self.last_establishment.0
@@ -359,11 +371,21 @@ impl Kever {
             if stale {
                 return Err(KelError::Stale { expected: next, found });
             }
-            // keripy accepts a rotation here when it supersedes an event already accepted: a
-            // recovery.
-            return Err(KelError::RecoveryUnsupported);
+            if event.kind() == EventKind::DelegatedRotation {
+                return Err(KelError::RecoveryUnsupported);
+            }
         }
-        if event.prior() != Some(self.said) {
+        // A recovery rotation follows the event before the one it supersedes, an interaction
+        // accepted since the latest establishment event or that event itself.
+        let prior = if recovery {
+            usize::try_from(found - 1 - self.last_establishment.0)
+                .ok()
+                .and_then(|position| self.since_establishment.get(position))
+                .copied()
+        } else {
+            Some(self.said)
+        };
+        if event.prior() != prior {
             return Err(KelError::PriorMismatch);
         }
         if self.next_digests.is_empty() {
@@ -372,6 +394,19 @@ impl Kever {
         let signing_threshold = established_threshold(event)?;
         check_threshold_fits(&signing_threshold, event.keys().len())?;
 
+        if recovery {
+            // keripy's `deriveBacks` derives no witness changes for a rotation at or below the
+            // latest sequence number: the witnesses, and the latest changes to them, stay as they
+            // are, whatever the rotation lists.
+            check_witness_threshold(event.witness_threshold(), self.witnesses.len())?;
+            return Ok(Rotation {
+                signing_threshold,
+                witness_threshold: event.witness_threshold(),
+                witnesses: self.witnesses.clone(),
+                cuts: self.cuts.clone(),
+                adds: self.adds.clone(),
+            });
+        }
         check_distinct(event.cuts(), "br")?;
         if event.cuts().iter().any(|cut| !self.witnesses.contains(cut)) {
             return Err(KelError::CutNotAWitness);
@@ -402,6 +437,8 @@ impl Kever {
             signing_threshold,
             witness_threshold: event.witness_threshold(),
             witnesses,
+            cuts: event.cuts().to_vec(),
+            adds: event.adds().to_vec(),
         })
     }
 
@@ -447,6 +484,7 @@ impl Kever {
         self.prior = event.prior();
         self.said = event.said();
         self.latest_kind = EventKind::Interaction;
+        self.since_establishment.push(event.said());
         self.first_seen = self.first_seen.saturating_add(1);
         self.first_seen_at = offer.first_seen_at.clone();
         Ok(Verified {

@@ -1,7 +1,7 @@
 //! Replays keripy's log-processing scenarios through the port and compares what both hold.
 //!
 //! The fixtures under `fixtures/kevery-keripy`, `fixtures/delegation-keripy` and
-//! `fixtures/out-of-order-keripy` share one shape:
+//! `fixtures/out-of-order-keripy` and `fixtures/recovery-keripy` share one shape:
 //! each step is a message, the outcome the port must reach, and a snapshot of what keripy held
 //! after processing it and its escrows.
 
@@ -52,6 +52,9 @@ pub(crate) struct IdentifierSnapshot {
     pub(crate) identifier: String,
     pub(crate) state_json: Option<String>,
     pub(crate) events: Vec<EventSnapshot>,
+    /// The SAIDs of events recovery rotations superseded, sorted.
+    #[serde(default)]
+    pub(crate) superseded: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -99,6 +102,7 @@ pub(crate) fn outcome_matches(result: &Result<Processed, KelError>, expected: &s
         "Escrowed:LikelyDuplicitous" => matches!(result, Ok(Processed::Escrowed(Escrow::LikelyDuplicitous))),
         "Escrowed:UnverifiedReceipt" => matches!(result, Ok(Processed::Escrowed(Escrow::UnverifiedReceipt))),
         "StaleReceipt" => matches!(result, Err(KelError::StaleReceipt)),
+        "PriorMismatch" => matches!(result, Err(KelError::PriorMismatch)),
         "UndelegatedRotation" => matches!(result, Err(KelError::UndelegatedRotation)),
         "DelegationForbidden" => matches!(result, Err(KelError::DelegationForbidden)),
         "DelegationSourceAtInception" => matches!(result, Err(KelError::DelegationSourceAtInception)),
@@ -161,6 +165,14 @@ pub(crate) fn compare(kevery: &Kevery, expected: &Snapshot, context: &str) -> Re
         let (state, events) = held(kevery, &identifier.identifier)?;
         assert_eq!(state, identifier.state_json, "{context}: key state");
         assert_eq!(events, identifier.events, "{context}: accepted events");
+        let prefix = IdentifierPrefix::from_qb64(&identifier.identifier)?;
+        let mut superseded: Vec<String> = kevery
+            .superseded(&prefix)
+            .iter()
+            .map(|logged| logged.event().said().unwrap_or_default().to_owned())
+            .collect();
+        superseded.sort();
+        assert_eq!(superseded, identifier.superseded, "{context}: superseded events");
     }
     Ok(())
 }

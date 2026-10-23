@@ -95,9 +95,10 @@ pub enum KelError {
         /// The sequence number found.
         found: u128,
     },
-    /// A rotation would replace an interaction already accepted at its sequence number.
+    /// A delegated rotation would supersede an event already accepted at its sequence number.
     ///
-    /// keripy accepts such a recovery rotation; this validator refuses it until recovery is ported.
+    /// keripy accepts such a delegated recovery under its superseding rules; this validator refuses
+    /// it until they are ported.
     RecoveryUnsupported,
     /// The event's prior digest is not the latest event's SAID.
     PriorMismatch,
@@ -262,7 +263,7 @@ impl fmt::Display for KelError {
             Self::Stale { expected, found } => {
                 write!(formatter, "sequence number {found} is stale, expected {expected}")
             }
-            Self::RecoveryUnsupported => formatter.write_str("recovery rotations are not validated yet"),
+            Self::RecoveryUnsupported => formatter.write_str("delegated recovery rotations are not validated yet"),
             Self::PriorMismatch => formatter.write_str("prior digest is not the latest event's SAID"),
             Self::EstablishmentOnly => formatter.write_str("identifier accepts establishment events only"),
             Self::NoVerifiedSignatures => formatter.write_str("no controller signature verifies"),
