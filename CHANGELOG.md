@@ -23,3 +23,6 @@
   and retries escrows in keripy's order, verified against keripy.
 - Recovery rotations: a rotation following an event accepted since the latest establishment event
   supersedes the events after it; `Kevery::superseded` keeps them, verified against keripy.
+- Delegated recovery: a delegated rotation supersedes the latest delegated rotation when its
+  delegating event is later in the delegator's log, or the latest event when that is an
+  interaction at its number, and every other delegated supersession is refused, as keripy does.

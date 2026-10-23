@@ -1,7 +1,8 @@
 //! Replays keripy's log-processing scenarios through the port and compares what both hold.
 //!
 //! The fixtures under `fixtures/kevery-keripy`, `fixtures/delegation-keripy` and
-//! `fixtures/out-of-order-keripy` and `fixtures/recovery-keripy` share one shape:
+//! `fixtures/out-of-order-keripy`, `fixtures/recovery-keripy` and
+//! `fixtures/delegated-recovery-keripy` share one shape:
 //! each step is a message, the outcome the port must reach, and a snapshot of what keripy held
 //! after processing it and its escrows.
 
@@ -103,6 +104,7 @@ pub(crate) fn outcome_matches(result: &Result<Processed, KelError>, expected: &s
         "Escrowed:UnverifiedReceipt" => matches!(result, Ok(Processed::Escrowed(Escrow::UnverifiedReceipt))),
         "StaleReceipt" => matches!(result, Err(KelError::StaleReceipt)),
         "PriorMismatch" => matches!(result, Err(KelError::PriorMismatch)),
+        "SupersedingDelegationNotLater" => matches!(result, Err(KelError::SupersedingDelegationNotLater)),
         "UndelegatedRotation" => matches!(result, Err(KelError::UndelegatedRotation)),
         "DelegationForbidden" => matches!(result, Err(KelError::DelegationForbidden)),
         "DelegationSourceAtInception" => matches!(result, Err(KelError::DelegationSourceAtInception)),

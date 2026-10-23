@@ -40,10 +40,13 @@ An event that arrives before the events it follows waits for them, unverified, a
 sequence order once they are accepted. An event contradicting one already accepted is kept aside as
 likely duplicitous and never accepted.
 
-A recovery rotation leaves the events it superseded in the `Kevery`, apart from the log.
+A recovery rotation leaves the events it superseded in the `Kevery`, apart from the log. A
+delegated rotation may supersede the latest delegated rotation when its delegating event is later
+in the delegator's log, or the latest event when that is an interaction at its number. keripy
+documents further cases that its code refuses; the port refuses them too, so that both hold the
+same events (see `fixtures/delegated-recovery-keripy/README.md`).
 
-Not covered yet: a delegated rotation superseding an accepted one, and receipts from transferable
-identifiers.
+Not covered yet: receipts from transferable identifiers.
 
 Nothing here reads a clock, a database or a network. The first-seen time is an argument and the
 state lives in the value.

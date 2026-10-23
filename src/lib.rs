@@ -22,10 +22,11 @@
 //! aside as likely duplicitous.
 //!
 //! A recovery rotation, signed with the keys the latest establishment event committed to, may
-//! supersede the interactions accepted since; [`Kevery`] keeps the superseded events apart.
+//! supersede the interactions accepted since; [`Kevery`] keeps the superseded events apart. A
+//! delegated rotation may supersede the latest delegated rotation when its delegator approves it
+//! later, under keripy's rules as its code applies them.
 //!
-//! Not yet covered: a delegated rotation superseding an accepted one, and receipts from
-//! transferable identifiers.
+//! Not yet covered: receipts from transferable identifiers.
 
 #![forbid(unsafe_code)]
 

@@ -95,11 +95,6 @@ pub enum KelError {
         /// The sequence number found.
         found: u128,
     },
-    /// A delegated rotation would supersede an event already accepted at its sequence number.
-    ///
-    /// keripy accepts such a delegated recovery under its superseding rules; this validator refuses
-    /// it until they are ported.
-    RecoveryUnsupported,
     /// The event's prior digest is not the latest event's SAID.
     PriorMismatch,
     /// An interaction was offered to an identifier configured for establishment events only.
@@ -128,6 +123,18 @@ pub enum KelError {
     /// No event of the delegator anchors a seal of this event yet, or the one the seal source
     /// couple names does not.
     DelegationNotAnchored,
+    /// A delegated rotation would supersede a delegated rotation, but its delegating event is not
+    /// later in the delegator's log than the superseded rotation's.
+    ///
+    /// keripy documents two more ways to supersede: a later seal in the same delegating event, and
+    /// a delegating rotation superseding a delegating interaction at the same sequence number. Its
+    /// code raises `AttributeError` before reaching either rule and refuses the rotation, and so
+    /// does this validator, so that both agree on which events a log holds.
+    SupersedingDelegationNotLater,
+    /// A delegated rotation would supersede an interaction that is not the latest event. keripy
+    /// compares against the delegating event of the latest event, which an interaction does not
+    /// have, and refuses the rotation once its delegator's log holds no seal of that interaction.
+    SupersededWithoutDelegation,
     /// An event contradicts one already accepted at its sequence number.
     LikelyDuplicitous,
     /// A receipt names an event other than the one accepted at its sequence number.
@@ -263,7 +270,6 @@ impl fmt::Display for KelError {
             Self::Stale { expected, found } => {
                 write!(formatter, "sequence number {found} is stale, expected {expected}")
             }
-            Self::RecoveryUnsupported => formatter.write_str("delegated recovery rotations are not validated yet"),
             Self::PriorMismatch => formatter.write_str("prior digest is not the latest event's SAID"),
             Self::EstablishmentOnly => formatter.write_str("identifier accepts establishment events only"),
             Self::NoVerifiedSignatures => formatter.write_str("no controller signature verifies"),
@@ -280,6 +286,12 @@ impl fmt::Display for KelError {
             }
             Self::DelegatingEventUnknown => formatter.write_str("delegating event is not accepted yet"),
             Self::DelegationNotAnchored => formatter.write_str("no delegator event anchors this event"),
+            Self::SupersedingDelegationNotLater => {
+                formatter.write_str("superseding delegation is not later than the superseded one")
+            }
+            Self::SupersededWithoutDelegation => {
+                formatter.write_str("superseded event has no delegating event to compare with")
+            }
             Self::LikelyDuplicitous => formatter.write_str("event contradicts one already accepted"),
             Self::StaleReceipt => formatter.write_str("receipt names an event other than the accepted one"),
             Self::TransferableReceiptsUnsupported => {

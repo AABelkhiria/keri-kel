@@ -65,12 +65,19 @@ impl EventSeal {
     /// keripy writes it, and its SAID.
     #[must_use]
     pub fn names(&self, event: &KeyEventFields) -> bool {
-        event
-            .identifier()
-            .qb64()
-            .is_ok_and(|identifier| identifier == self.identifier)
-            && format!("{:x}", event.sequence_number()) == self.sequence_number
-            && event.said().qb64().is_ok_and(|said| said == self.said)
+        event.identifier().qb64().is_ok_and(|identifier| {
+            event
+                .said()
+                .qb64()
+                .is_ok_and(|said| self.names_parts(&identifier, event.sequence_number(), &said))
+        })
+    }
+
+    /// Returns whether this seal names the event with this identifier, sequence number and SAID,
+    /// each as qb64 text.
+    #[must_use]
+    pub fn names_parts(&self, identifier: &str, sequence_number: u128, said: &str) -> bool {
+        identifier == self.identifier && format!("{sequence_number:x}") == self.sequence_number && said == self.said
     }
 }
 

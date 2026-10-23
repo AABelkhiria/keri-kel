@@ -39,9 +39,12 @@
 //!
 //! A recovery rotation supersedes interactions accepted since the latest establishment event: it
 //! is accepted at the sequence number of the first one it supersedes, and the superseded events are
-//! kept apart ([`Kevery::superseded`]), as keripy keeps them in its log. A delegated rotation
-//! superseding an accepted event is refused with [`KelError::RecoveryUnsupported`] until keripy's
-//! rules for it are ported.
+//! kept apart ([`Kevery::superseded`]), as keripy keeps them in its log. A delegated rotation may
+//! also supersede the latest delegated rotation, signed with the keys that rotation committed to,
+//! when its delegating event is later in the delegator's log than the superseded rotation's; and
+//! the latest event, when that is an interaction at its sequence number. keripy refuses every other
+//! delegated supersession, and so does this port ([`KelError::SupersedingDelegationNotLater`],
+//! [`KelError::SupersededWithoutDelegation`]).
 //!
 //! One behaviour differs. When a witness's receipt couple is attached to an event, keripy's
 //! `processAttachedReceiptCouples` compares the couple's key, a string, against a list of prefix
@@ -737,35 +740,104 @@ impl Delegations for Delegators<'_> {
             return Err(KelError::DelegationForbidden);
         }
         let anchors = |logged: &LoggedEvent| logged.event_seals.iter().any(|seal| seal.names(event));
-        let Some(source) = source else {
-            if !self.eager {
+        let sequence_number = if let Some(source) = source {
+            let sequence_number = source.sequence_number().value();
+            if sequence_number == 0 {
+                return Err(KelError::DelegationSourceAtInception);
+            }
+            // keripy reads the delegator's event at the couple's sequence number and ignores the
+            // couple's SAID, storing the found event's instead.
+            let logged = log
+                .events
+                .get(&sequence_number)
+                .ok_or(KelError::DelegatingEventUnknown)?;
+            if !anchors(logged) {
                 return Err(KelError::DelegationNotAnchored);
             }
-            // keripy's `fetchLastSealingEventByEventSeal`: the earliest anchoring event that is
-            // fully witnessed against the delegator's witness threshold in force now.
-            let threshold = usize::try_from(log.kever.witness_threshold()).unwrap_or(usize::MAX);
-            return log
-                .events
-                .iter()
-                .find(|(_, logged)| anchors(logged) && logged.witness_signatures.len() >= threshold)
-                .map(|(sequence_number, logged)| couple(*sequence_number, logged))
-                .ok_or(KelError::DelegationNotAnchored)?;
+            sequence_number
+        } else if self.eager {
+            anchoring(log, anchors).ok_or(KelError::DelegationNotAnchored)?
+        } else {
+            return Err(KelError::DelegationNotAnchored);
         };
-        let sequence_number = source.sequence_number().value();
-        if sequence_number == 0 {
-            return Err(KelError::DelegationSourceAtInception);
-        }
-        // keripy reads the delegator's event at the couple's sequence number and ignores the
-        // couple's SAID, storing the found event's instead.
+        self.check_superseding(log, event, sequence_number)?;
         let logged = log
             .events
             .get(&sequence_number)
             .ok_or(KelError::DelegatingEventUnknown)?;
-        if !anchors(logged) {
-            return Err(KelError::DelegationNotAnchored);
-        }
         couple(sequence_number, logged)
     }
+}
+
+impl Delegators<'_> {
+    /// The superseding part of keripy's `validateDelegation`, for a delegated event anchored at
+    /// `anchored_at` in the delegator's log.
+    ///
+    /// A delegated inception, or a rotation following the latest event, supersedes nothing; nor
+    /// does a delegated rotation superseding the latest event when that is an interaction at its
+    /// sequence number. Otherwise keripy compares the new delegating event with the delegating
+    /// event of the delegate's latest event, and accepts only a later one.
+    fn check_superseding(&self, delegator: &Log, event: &KeyEventFields, anchored_at: u128) -> Result<(), KelError> {
+        let identifier = qb64(event.identifier())?;
+        let Some(delegate) = self.logs.get(&identifier).filter(|_| !event.is_inception()) else {
+            return Ok(());
+        };
+        let latest = delegate.kever.sequence_number();
+        let found = event.sequence_number();
+        let over_interaction = found == latest
+            && delegate.kever.latest_kind() == EventKind::Interaction
+            && event.kind() == EventKind::DelegatedRotation;
+        if found == latest.saturating_add(1) || over_interaction {
+            return Ok(());
+        }
+        let Some(superseded) = delegate.events.get(&latest) else {
+            return Ok(());
+        };
+        let original = match superseded.delegation {
+            // keripy's `fetchDelegatingEvent` accepts the stored delegating event when the
+            // delegator accepted it at some point, even if a recovery has superseded it since.
+            Some(couple) => {
+                let said = couple.said().qb64().map_err(KelError::said)?;
+                delegator
+                    .events
+                    .values()
+                    .chain(&delegator.superseded)
+                    .find(|logged| logged.event.said() == Some(said.as_str()))
+                    .and_then(|logged| logged.event.sequence_number().ok().flatten())
+                    .ok_or(KelError::DelegatingEventUnknown)?
+                    .value()
+            }
+            // Without a stored delegating event keripy waits, then searches the delegator's log
+            // when retrying, and refuses when no event there anchors the superseded one.
+            None if self.eager => {
+                let said = superseded.event.said().unwrap_or_default();
+                anchoring(delegator, |logged| {
+                    logged
+                        .event_seals
+                        .iter()
+                        .any(|seal| seal.names_parts(&identifier, latest, said))
+                })
+                .ok_or(KelError::SupersededWithoutDelegation)?
+            }
+            None => return Err(KelError::DelegatingEventUnknown),
+        };
+        if anchored_at > original {
+            Ok(())
+        } else {
+            Err(KelError::SupersedingDelegationNotLater)
+        }
+    }
+}
+
+/// keripy's `fetchLastSealingEventByEventSeal`: the sequence number of the delegator's earliest
+/// accepted event that `anchors` and is fully witnessed against its witness threshold in force now.
+fn anchoring(delegator: &Log, anchors: impl Fn(&LoggedEvent) -> bool) -> Option<u128> {
+    let threshold = usize::try_from(delegator.kever.witness_threshold()).unwrap_or(usize::MAX);
+    delegator
+        .events
+        .iter()
+        .find(|(_, logged)| anchors(logged) && logged.witness_signatures.len() >= threshold)
+        .map(|(sequence_number, _)| *sequence_number)
 }
 
 /// A seal source couple naming a logged event.

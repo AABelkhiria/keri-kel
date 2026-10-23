@@ -60,7 +60,7 @@ sequence number, sorted), and how many events are escrowed.
   latest sequence number, so a recovery rotation's cuts and adds are ignored, the witnesses stay as
   they were, and its witness threshold is checked against them. The port does the same.
 
-A delegated rotation superseding an accepted event follows separate superseding rules in keripy and
-is not recorded here; the port refuses it until those rules are ported.
+A delegated rotation superseding an accepted event follows separate superseding rules in keripy,
+recorded in `fixtures/delegated-recovery-keripy`.
 
 Rust tests consume the checked-in fixture and require neither Python nor network access.

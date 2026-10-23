@@ -65,6 +65,8 @@ pub struct Kever {
     /// The SAIDs of the latest establishment event and every event since, which a recovery
     /// rotation may follow.
     since_establishment: Vec<Said>,
+    /// The latest establishment event's prior, which a delegated rotation superseding it follows.
+    establishment_prior: Option<Said>,
     establishment_only: bool,
     do_not_delegate: bool,
     delegator: Option<IdentifierPrefix>,
@@ -227,6 +229,7 @@ impl Kever {
             adds: Vec::new(),
             last_establishment: (0, event.said()),
             since_establishment: vec![event.said()],
+            establishment_prior: None,
             establishment_only: event.establishment_only(),
             do_not_delegate: event.do_not_delegate(),
             delegator: event.delegator().cloned(),
@@ -254,8 +257,7 @@ impl Kever {
     /// [`KelError::UndelegatedRotation`] for a plain rotation of a delegated identifier, and
     /// [`KelError::DelegatorUnknown`] for its delegated rotation, whose delegator's log only a
     /// [`Kevery`](crate::Kevery) can consult;
-    /// [`KelError::OutOfOrder`], [`KelError::Stale`] or, for a delegated rotation superseding an
-    /// accepted event, [`KelError::RecoveryUnsupported`] when the
+    /// [`KelError::OutOfOrder`] or [`KelError::Stale`] when the
     /// event does not follow the latest one; [`KelError::PriorMismatch`];
     /// [`KelError::EstablishmentOnly`]; the establishment checks of [`Self::incept`] and, for a
     /// rotation, [`KelError::CutNotAWitness`] and [`KelError::ConflictingWitnessLists`];
@@ -344,6 +346,7 @@ impl Kever {
         self.adds = rotation.adds;
         self.last_establishment = (event.sequence_number(), event.said());
         self.since_establishment = vec![event.said()];
+        self.establishment_prior = event.prior();
         self.first_seen = self.first_seen.saturating_add(1);
         self.first_seen_at = offer.first_seen_at.clone();
         Ok(Verified {
@@ -371,19 +374,19 @@ impl Kever {
             if stale {
                 return Err(KelError::Stale { expected: next, found });
             }
-            if event.kind() == EventKind::DelegatedRotation {
-                return Err(KelError::RecoveryUnsupported);
-            }
         }
-        // A recovery rotation follows the event before the one it supersedes, an interaction
-        // accepted since the latest establishment event or that event itself.
-        let prior = if recovery {
+        // A recovery rotation follows the event before the one it supersedes: the latest
+        // establishment event's prior when it supersedes that event, otherwise that event or an
+        // interaction accepted since.
+        let prior = if !recovery {
+            Some(self.said)
+        } else if found == self.last_establishment.0 {
+            self.establishment_prior
+        } else {
             usize::try_from(found - 1 - self.last_establishment.0)
                 .ok()
                 .and_then(|position| self.since_establishment.get(position))
                 .copied()
-        } else {
-            Some(self.said)
         };
         if event.prior() != prior {
             return Err(KelError::PriorMismatch);
@@ -541,6 +544,11 @@ impl Kever {
     #[must_use]
     pub const fn said(&self) -> Said {
         self.said
+    }
+
+    /// Returns the latest accepted event's kind.
+    pub(crate) const fn latest_kind(&self) -> EventKind {
+        self.latest_kind
     }
 
     /// Returns the sequence number of the latest establishment event.
