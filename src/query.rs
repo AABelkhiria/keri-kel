@@ -23,8 +23,8 @@
 //! [`KelError::QueryUnanswerable`].
 //!
 //! This ports keripy's `Kevery.processQuery`, `escrowQueryNotFoundEvent` and
-//! `processQueryNotFound` (`src/keri/core/eventing.py`). Writing a replay out as messages is the
-//! caller's.
+//! `processQueryNotFound` (`src/keri/core/eventing.py`). [`LoggedEvent::replay`] writes each
+//! replayed event out as keripy's `cloneEvtMsg` does.
 
 use keri_protocol::event::key_state::KeyStateRecord;
 use keri_protocol::event::query::QueryMessage;

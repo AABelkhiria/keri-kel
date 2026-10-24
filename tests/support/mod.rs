@@ -97,11 +97,11 @@ pub(crate) struct AnswerSnapshot {
     pub(crate) state_json: Option<String>,
 }
 
-/// An answer reduced to what both sides can be compared on: the replayed events' SAIDs and
-/// first-seen ordinals, a key state's JSON, or a mailbox's identifier.
+/// An answer reduced to what both sides can be compared on: the replayed messages' exact bytes, in
+/// hexadecimal, a key state's JSON, or a mailbox's identifier.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Compared {
-    Replay(Vec<(String, u128)>),
+    Replay(Vec<String>),
     KeyState(String),
     Mailbox(String),
 }
@@ -109,22 +109,13 @@ pub(crate) enum Compared {
 impl AnswerSnapshot {
     fn compared(&self) -> Result<Compared, Box<dyn Error>> {
         match self.kind.as_str() {
-            "replay" => Ok(Compared::Replay(
-                self.messages_hex
-                    .iter()
-                    .map(|hex| -> Result<(String, u128), Box<dyn Error>> {
-                        let message = Message::from_bytes(&decode_hex(hex)?)?;
-                        let ordinal = message
-                            .attachments()
-                            .first_seen_replay_couples()
-                            .first()
-                            .ok_or("replayed event without a first-seen couple")?
-                            .ordinal()
-                            .value();
-                        Ok((message.event().said().unwrap_or_default().to_owned(), ordinal))
-                    })
-                    .collect::<Result<_, _>>()?,
-            )),
+            "replay" => {
+                for hex in &self.messages_hex {
+                    // Each is a whole message, as the parser reads it back.
+                    Message::from_bytes(&decode_hex(hex)?)?;
+                }
+                Ok(Compared::Replay(self.messages_hex.clone()))
+            }
             "key_state" => Ok(Compared::KeyState(self.state_json.clone().ok_or("no state")?)),
             _ => Ok(Compared::Mailbox(self.identifier.clone().ok_or("no identifier")?)),
         }
@@ -137,13 +128,8 @@ fn ours(answered: &Answered) -> Result<Compared, Box<dyn Error>> {
             events
                 .iter()
                 .chain(delegator)
-                .map(|logged| {
-                    (
-                        logged.event().said().unwrap_or_default().to_owned(),
-                        logged.first_seen(),
-                    )
-                })
-                .collect(),
+                .map(|logged| -> Result<String, Box<dyn Error>> { Ok(encode_hex(&logged.replay()?)) })
+                .collect::<Result<_, _>>()?,
         ),
         Answer::KeyState(state) => Compared::KeyState(String::from_utf8(state.to_sad()?.to_json_bytes()?)?),
         Answer::Mailbox { identifier, .. } => Compared::Mailbox(identifier.qb64()?),
@@ -204,6 +190,16 @@ pub(crate) struct EventSnapshot {
 pub(crate) struct Delegation {
     pub(crate) sequence_number: u128,
     pub(crate) said: String,
+}
+
+fn encode_hex(bytes: &[u8]) -> String {
+    use core::fmt::Write;
+    bytes
+        .iter()
+        .fold(String::with_capacity(bytes.len() * 2), |mut hex, byte| {
+            let _ = write!(hex, "{byte:02x}");
+            hex
+        })
 }
 
 pub(crate) fn decode_hex(input: &str) -> Result<Vec<u8>, Box<dyn Error>> {

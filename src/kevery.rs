@@ -68,14 +68,14 @@ use keri_cesr::crypto::signature::IndexedSignature;
 use keri_cesr::crypto::verifier::VerificationKey;
 use keri_cesr::indexer::IndexerCode;
 use keri_cesr::sequence::SequenceNumber;
-use keri_protocol::attachment::{ReceiptCouple, SealSourceCouple};
+use keri_protocol::attachment::{AttachmentFraming, ReceiptCouple, SealSourceCouple, SignedMessageBuilder};
 use keri_protocol::event::kind::EventKind;
 use keri_protocol::event::receipt::ReceiptMessage;
 use keri_protocol::event::timestamp::Timestamp;
 use keri_protocol::prefix::IdentifierPrefix;
 use keri_protocol::said::Said;
 use keri_protocol::serialization::SerializedEvent;
-use keri_protocol::stream::{Message, ReceiptQuadruple, TransferableSignatureGroup};
+use keri_protocol::stream::{FirstSeenReplayCouple, Message, ReceiptQuadruple, TransferableSignatureGroup};
 
 use crate::error::{Escrow, KelError};
 use crate::event::{EventSeal, KeyEventFields};
@@ -177,6 +177,60 @@ impl LoggedEvent {
     #[must_use]
     pub const fn first_seen(&self) -> u128 {
         self.first_seen
+    }
+
+    /// Writes the event as a log replay carries it, keripy's `cloneEvtMsg`: the event, then one
+    /// pipelined group holding its controller signatures, witness signatures, delegating event,
+    /// validator receipts and receipt couples, each in qb64 order as keripy's database returns
+    /// them, and its first-seen ordinal and time.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`KelError::Attachment`] when the attachments cannot be encoded.
+    pub fn replay(&self) -> Result<Vec<u8>, KelError> {
+        let text = |signature: &IndexedSignature| signature.qb64().map_err(KelError::attachment);
+        let signatures = sorted(&self.signatures, text)?;
+        let witness_signatures = sorted(&self.witness_signatures, text)?;
+        let quadruples = self
+            .validator_receipts
+            .iter()
+            .map(|receipt| {
+                ReceiptQuadruple::new(
+                    receipt.validator().clone(),
+                    SequenceNumber::new(receipt.sequence_number()),
+                    receipt.said(),
+                    receipt.signature().clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let quadruples = sorted(&quadruples, |quadruple| {
+            Ok(format!(
+                "{}{}{}{}",
+                quadruple.identifier().qb64().map_err(KelError::prefix)?,
+                quadruple.sequence_number().qb64().map_err(KelError::cesr)?,
+                quadruple.said().qb64().map_err(KelError::said)?,
+                quadruple.signature().qb64().map_err(KelError::attachment)?,
+            ))
+        })?;
+        let couples = sorted(&self.receipts, |couple| {
+            Ok(format!(
+                "{}{}",
+                couple.verifier().qb64().map_err(KelError::attachment)?,
+                couple.signature().qb64().map_err(KelError::attachment)?,
+            ))
+        })?;
+        let first_seen = FirstSeenReplayCouple::new(SequenceNumber::new(self.first_seen), self.first_seen_at.clone());
+        let mut builder = SignedMessageBuilder::new(&self.event)
+            .controller_signatures(signatures)
+            .witness_signatures(witness_signatures)
+            .receipt_quadruples(quadruples)
+            .receipt_couples(couples)
+            .first_seen(first_seen)
+            .framing(AttachmentFraming::Pipelined);
+        if let Some(source) = self.delegation {
+            builder = builder.source(source);
+        }
+        Ok(builder.build().map_err(KelError::attachment)?.into_bytes())
     }
 
     /// Returns whether one of the event's anchors is `seal`.
@@ -1358,6 +1412,16 @@ impl<S: Store> Delegators<'_, S> {
 fn couple(sequence_number: u128, logged: &LoggedEvent) -> Result<SealSourceCouple, KelError> {
     let said = Said::from_qb64(logged.event.said().unwrap_or_default()).map_err(KelError::said)?;
     Ok(SealSourceCouple::new(SequenceNumber::new(sequence_number), said))
+}
+
+/// `items` in the order of `key`, keripy's sorted duplicates.
+fn sorted<T: Clone>(items: &[T], key: impl Fn(&T) -> Result<String, KelError>) -> Result<Vec<T>, KelError> {
+    let mut keyed = items
+        .iter()
+        .map(|item| Ok((key(item)?, item.clone())))
+        .collect::<Result<Vec<_>, KelError>>()?;
+    keyed.sort_by(|(left, _), (right, _)| left.cmp(right));
+    Ok(keyed.into_iter().map(|(_, item)| item).collect())
 }
 
 /// Adds each signature not already stored, keripy's set semantics for stored signatures.

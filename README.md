@@ -73,8 +73,8 @@ give.
 A `Kevery` answers queries as keripy does: `logs` with the events to replay, in the order first
 seen and superseded ones included, followed by the delegator's log; `ksn` with the key state; and
 `mbx` by opening the mailbox. A query the log cannot answer yet waits and is answered by
-`process_escrows` once it can; answers are taken with `take_answers`. Writing a replay out as
-messages, and deciding who may ask, are the caller's.
+`process_escrows` once it can; answers are taken with `take_answers`, and `LoggedEvent::replay`
+writes each replayed event exactly as keripy's replay does. Deciding who may ask is the caller's.
 
 `adjudicate` compares what an identifier's watchers last reported with the local state, as keripy's
 `Adjudicator` does: duplicity first, then watchers ahead, which call for an update when enough of

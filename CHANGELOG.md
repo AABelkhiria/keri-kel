@@ -43,7 +43,8 @@
 - Queries: `Kevery` answers `logs`, `ksn` and `mbx` queries once its log holds what they ask for,
   replaying events in first-seen order, superseded ones and the delegator's log included, and
   escrows the rest until it can, verified against keripy; `LoggedEvent::first_seen` gives each
-  event's first-seen ordinal.
+  event's first-seen ordinal, and `LoggedEvent::replay` writes it as keripy's log replay does,
+  byte for byte.
 - Adjudication: `adjudicate` and `Kevery::adjudicate` decide, from what an identifier's watchers
   last reported, whether the local state is consistent, lagging, due an update or contradicted,
   verified against keripy's `Adjudicator`.
