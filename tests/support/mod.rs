@@ -3,8 +3,8 @@
 //! The fixtures under `fixtures/kevery-keripy`, `fixtures/delegation-keripy` and
 //! `fixtures/out-of-order-keripy`, `fixtures/recovery-keripy` and
 //! `fixtures/delegated-recovery-keripy`, `fixtures/validator-receipts-keripy` and
-//! `fixtures/key-state-notices-keripy`, `fixtures/endpoints-keripy` and
-//! `fixtures/observations-keripy` share one shape:
+//! `fixtures/key-state-notices-keripy`, `fixtures/endpoints-keripy`, `fixtures/observations-keripy`
+//! and `fixtures/queries-keripy` share one shape:
 //! each step is a message, the outcome the port must reach, and a snapshot of what keripy held
 //! after processing it and its escrows.
 
@@ -12,7 +12,7 @@ use std::error::Error;
 
 use keri_cesr::crypto::signature::IndexedSignature;
 use keri_cesr::sequence::SequenceNumber;
-use keri_kel::{Escrow, KelError, Kevery, NoticeTrust, Processed};
+use keri_kel::{Answer, Answered, Escrow, KelError, Kevery, NoticeTrust, Processed};
 use keri_protocol::event::timestamp::Timestamp;
 use keri_protocol::prefix::IdentifierPrefix;
 use keri_protocol::stream::Message;
@@ -71,15 +71,83 @@ pub(crate) struct Step {
     pub(crate) raw: String,
     pub(crate) raw_hex: String,
     pub(crate) rust_outcome: String,
-    pub(crate) keripy: Raised,
+    pub(crate) keripy: KeripyOutcome,
     pub(crate) after: Snapshot,
 }
 
 #[derive(Debug, Deserialize)]
-pub(crate) struct Raised {
+pub(crate) struct KeripyOutcome {
     pub(crate) raised: Option<String>,
     #[serde(default)]
     pub(crate) message: Option<String>,
+    /// The answers keripy gave to a query.
+    #[serde(default)]
+    pub(crate) answers: Vec<AnswerSnapshot>,
+}
+
+/// An answer keripy cued, as the fixtures record it.
+#[derive(Debug, Deserialize)]
+pub(crate) struct AnswerSnapshot {
+    pub(crate) kind: String,
+    #[serde(default)]
+    pub(crate) identifier: Option<String>,
+    #[serde(default)]
+    pub(crate) messages_hex: Vec<String>,
+    #[serde(default)]
+    pub(crate) state_json: Option<String>,
+}
+
+/// An answer reduced to what both sides can be compared on: the replayed events' SAIDs and
+/// first-seen ordinals, a key state's JSON, or a mailbox's identifier.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Compared {
+    Replay(Vec<(String, u128)>),
+    KeyState(String),
+    Mailbox(String),
+}
+
+impl AnswerSnapshot {
+    fn compared(&self) -> Result<Compared, Box<dyn Error>> {
+        match self.kind.as_str() {
+            "replay" => Ok(Compared::Replay(
+                self.messages_hex
+                    .iter()
+                    .map(|hex| -> Result<(String, u128), Box<dyn Error>> {
+                        let message = Message::from_bytes(&decode_hex(hex)?)?;
+                        let ordinal = message
+                            .attachments()
+                            .first_seen_replay_couples()
+                            .first()
+                            .ok_or("replayed event without a first-seen couple")?
+                            .ordinal()
+                            .value();
+                        Ok((message.event().said().unwrap_or_default().to_owned(), ordinal))
+                    })
+                    .collect::<Result<_, _>>()?,
+            )),
+            "key_state" => Ok(Compared::KeyState(self.state_json.clone().ok_or("no state")?)),
+            _ => Ok(Compared::Mailbox(self.identifier.clone().ok_or("no identifier")?)),
+        }
+    }
+}
+
+fn ours(answered: &Answered) -> Result<Compared, Box<dyn Error>> {
+    Ok(match answered.answer() {
+        Answer::Replay { events, delegator, .. } => Compared::Replay(
+            events
+                .iter()
+                .chain(delegator)
+                .map(|logged| {
+                    (
+                        logged.event().said().unwrap_or_default().to_owned(),
+                        logged.first_seen(),
+                    )
+                })
+                .collect(),
+        ),
+        Answer::KeyState(state) => Compared::KeyState(String::from_utf8(state.to_sad()?.to_json_bytes()?)?),
+        Answer::Mailbox { identifier, .. } => Compared::Mailbox(identifier.qb64()?),
+    })
 }
 
 #[derive(Debug, Deserialize)]
@@ -99,6 +167,11 @@ pub(crate) struct Snapshot {
     pub(crate) observations: Vec<ObservationSnapshot>,
     #[serde(default)]
     pub(crate) oobis: Vec<String>,
+    /// Answers to queries escrowed earlier, given in the escrow pass.
+    #[serde(default)]
+    pub(crate) answered: Vec<AnswerSnapshot>,
+    #[serde(default)]
+    pub(crate) escrowed_queries: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -172,6 +245,9 @@ pub(crate) fn outcome_matches(result: &Result<Processed, KelError>, expected: &s
         "EndRoleAccepted" => matches!(result, Ok(Processed::EndRoleAccepted)),
         "LocationAccepted" => matches!(result, Ok(Processed::LocationAccepted)),
         "ObservationAccepted" => matches!(result, Ok(Processed::ObservationAccepted)),
+        "Answered" => matches!(result, Ok(Processed::Answered)),
+        "Escrowed:QueryNotFound" => matches!(result, Ok(Processed::Escrowed(Escrow::QueryNotFound))),
+        "QueryUnanswerable" => matches!(result, Err(KelError::QueryUnanswerable)),
         "InvalidReply" => matches!(result, Err(KelError::Reply { .. })),
         "Escrowed:UnverifiedReply" => matches!(result, Ok(Processed::Escrowed(Escrow::UnverifiedReply))),
         "UnverifiedReply" => matches!(result, Err(KelError::UnverifiedReply)),
@@ -249,6 +325,11 @@ pub(crate) fn compare(kevery: &Kevery, expected: &Snapshot, context: &str) -> Re
         kevery.escrowed_replies()?,
         expected.escrowed_replies,
         "{context}: escrowed replies"
+    );
+    assert_eq!(
+        kevery.escrowed_queries()?,
+        expected.escrowed_queries,
+        "{context}: escrowed queries"
     );
     let mut notices = Vec::new();
     for identifier in &expected.states {
@@ -375,6 +456,15 @@ pub(crate) fn replay(
                 step.keripy.raised,
                 step.keripy.message
             );
+            let answers = kevery.take_answers().iter().map(ours).collect::<Result<Vec<_>, _>>()?;
+            let expected = step
+                .keripy
+                .answers
+                .iter()
+                .chain(&step.after.answered)
+                .map(AnswerSnapshot::compared)
+                .collect::<Result<Vec<_>, _>>()?;
+            assert_eq!(answers, expected, "{context}: answers");
             kevery = between(kevery);
             compare(&kevery, &step.after, &context)?;
         }

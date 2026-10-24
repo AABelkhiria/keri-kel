@@ -81,6 +81,7 @@ use crate::error::{Escrow, KelError};
 use crate::event::{EventSeal, KeyEventFields};
 use crate::kever::{Delegations, Kever, Offer, Verified, verified, witness_keys};
 use crate::notice::NoticeTrust;
+use crate::query::Answered;
 use crate::store::{MemoryStore, Store};
 
 /// What became of one processed message.
@@ -100,6 +101,8 @@ pub enum Processed {
     LocationAccepted,
     /// The watcher registration was kept, replacing any earlier one for the same observation.
     ObservationAccepted,
+    /// The query was answered; the answer waits in [`Kevery::take_answers`].
+    Answered,
     /// The message was kept for later, for the reason given.
     Escrowed(Escrow),
 }
@@ -116,6 +119,7 @@ pub struct LoggedEvent {
     witnesses: Vec<IdentifierPrefix>,
     delegation: Option<SealSourceCouple>,
     event_seals: Vec<EventSeal>,
+    first_seen: u128,
     first_seen_at: Timestamp,
 }
 
@@ -166,6 +170,19 @@ impl LoggedEvent {
     #[must_use]
     pub const fn delegation(&self) -> Option<&SealSourceCouple> {
         self.delegation.as_ref()
+    }
+
+    /// Returns the event's first-seen ordinal: how many events of its identifier were accepted
+    /// before it, superseded ones included, keripy's `fn`.
+    #[must_use]
+    pub const fn first_seen(&self) -> u128 {
+        self.first_seen
+    }
+
+    /// Returns whether one of the event's anchors is `seal`.
+    #[must_use]
+    pub fn anchors(&self, seal: &EventSeal) -> bool {
+        self.event_seals.contains(seal)
     }
 
     /// Returns when the event was first seen.
@@ -362,6 +379,7 @@ impl WaitingReceipt {
 pub struct Kevery<S = MemoryStore> {
     pub(crate) store: S,
     pub(crate) trust: NoticeTrust,
+    pub(crate) answers: Vec<Answered>,
 }
 
 impl Kevery {
@@ -378,6 +396,7 @@ impl<S: Store> Kevery<S> {
         Self {
             store,
             trust: NoticeTrust::default(),
+            answers: Vec::new(),
         }
     }
 
@@ -428,6 +447,9 @@ impl<S: Store> Kevery<S> {
         let attachments = message.attachments();
         if kind == EventKind::Reply {
             return self.process_reply(message, now);
+        }
+        if kind == EventKind::Query {
+            return self.process_query(message, now);
         }
         if kind == EventKind::Receipt {
             return self.process_receipt(
@@ -847,6 +869,7 @@ impl<S: Store> Kevery<S> {
             accepted += self.retry(reason, now)?;
         }
         self.retry_replies(now)?;
+        self.retry_queries()?;
         Ok(accepted)
     }
 
@@ -902,7 +925,8 @@ impl<S: Store> Kevery<S> {
                     | Processed::KeyStateAccepted
                     | Processed::EndRoleAccepted
                     | Processed::LocationAccepted
-                    | Processed::ObservationAccepted,
+                    | Processed::ObservationAccepted
+                    | Processed::Answered,
                 ) => {}
                 Err(error @ KelError::Store { .. }) => return Err(error),
                 Err(_) => {
@@ -1077,7 +1101,11 @@ impl<S: Store> Kevery<S> {
         let events = self.store.expire_escrowed(cutoff).map_err(KelError::store)?;
         let receipts = self.store.expire_receipts(cutoff).map_err(KelError::store)?;
         let replies = self.store.expire_escrowed_replies(cutoff).map_err(KelError::store)?;
-        Ok(events.saturating_add(receipts).saturating_add(replies))
+        let queries = self.store.expire_escrowed_queries(cutoff).map_err(KelError::store)?;
+        Ok(events
+            .saturating_add(receipts)
+            .saturating_add(replies)
+            .saturating_add(queries))
     }
 
     /// Returns an identifier's key state, when its inception has been accepted.
@@ -1167,6 +1195,7 @@ fn logged(
         witnesses: kever.witnesses().to_vec(),
         delegation: verified.delegation,
         event_seals: event.event_seals().to_vec(),
+        first_seen: kever.first_seen(),
         first_seen_at: now.clone(),
     }
 }

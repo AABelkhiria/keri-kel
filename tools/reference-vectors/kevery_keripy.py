@@ -44,7 +44,24 @@ OUTCOMES = {
     kering.OutOfOrderError: "OutOfOrder",
     kering.LikelyDuplicitousError: "LikelyDuplicitous",
     kering.UnverifiedTransferableReceiptError: "UnverifiedTransferableReceipt",
+    kering.QueryNotFoundError: "QueryNotFound",
 }
+
+
+def answers(kevery):
+    """Drains the answers keripy's `Kevery` cued: replays, key state replies and mailbox streams."""
+    answered = []
+    while kevery.cues:
+        cue = kevery.cues.pull()
+        if cue["kin"] == "replay":
+            answered.append({"kind": "replay", "identifier": cue["pre"],
+                             "messages_hex": [bytes(msg).hex() for msg in cue["msgs"]]})
+        elif cue["kin"] == "reply":
+            answered.append({"kind": "key_state",
+                             "state_json": json.dumps(cue["serder"].ked["a"], separators=(",", ":"))})
+        elif cue["kin"] == "stream":
+            answered.append({"kind": "mailbox", "identifier": cue["pre"]})
+    return answered
 
 
 def signer(seed, transferable=True):
@@ -130,8 +147,21 @@ class Scenario:
         return self._offer(label, raw, expect,
                            lambda: self.revery.processReply(serder=serder, cigars=list(cigars), tsgs=tsgs))
 
+    def query(self, label, serder, expect, *, key=None, requester=None, cigar=None):
+        """Offers a query signed, as keripy's agents sign one, by `key` of the transferable
+        `requester` against its latest establishment event, or by a non-transferable `cigar`."""
+        if cigar is not None:
+            raw = bytes(eventing.messagize(serder, cigars=[cigar]))
+            args = dict(serder=serder, cigars=[cigar])
+        else:
+            siger = key.sign(ser=serder.raw, index=0)
+            raw = bytes(eventing.messagize(serder, sigers=[siger], seal=eventing.SealLast(i=requester)))
+            args = dict(serder=serder, source=Prefixer(qb64=requester), sigers=[siger])
+        return self._offer(label, raw, expect, lambda: self.kevery.processQuery(**args))
+
     def _offer(self, label, raw, expect, run):
         step = {"label": label, "raw": raw.decode(), "raw_hex": raw.hex(), "rust_outcome": expect}
+        answers(self.kevery)
         try:
             attachments = run()
             step["keripy"] = {"raised": None}
@@ -142,9 +172,16 @@ class Scenario:
             mapped = OUTCOMES.get(type(error))
             if mapped is not None and expect != f"Escrowed:{mapped}":
                 raise AssertionError(f"{self.name}/{label}: keripy escrowed {mapped}, expected {expect}")
+        answered = answers(self.kevery)
+        if answered:
+            step["keripy"]["answers"] = answered
         self.kevery.processEscrows()
         self.revery.processEscrowReply()
         step["after"] = self.snapshot()
+        answered = answers(self.kevery)
+        if answered:
+            # Answers to queries escrowed earlier, given once the log arrived.
+            step["after"]["answered"] = answered
         self.steps.append(step)
         return self
 
@@ -224,6 +261,9 @@ class Scenario:
         oobis = sorted(url for (url,), _ in self.db.oobis.getItemIter())
         if oobis:
             snapshot["oobis"] = oobis
+        queries = sum(1 for _ in self.db.qnfs.getItemIter())
+        if queries:
+            snapshot["escrowed_queries"] = queries
         replies = sum(1 for _ in self.db.rpes.getItemIter())
         if replies:
             snapshot["escrowed_replies"] = replies

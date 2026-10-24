@@ -7,7 +7,7 @@ use std::cell::Cell;
 use std::error::Error;
 
 use keri_kel::{
-    EndRoleRecord, Escrow, EscrowStore, EscrowedEvent, EscrowedReply, KelError, KelStore, Kever, Kevery,
+    EndRoleRecord, Escrow, EscrowStore, EscrowedEvent, EscrowedQuery, EscrowedReply, KelError, KelStore, Kever, Kevery,
     KeyStateNotice, LocationRecord, LoggedEvent, MemoryStore, ObservationRecord, ReceiptStore, ReplyStore, StoreError,
     WaitingReceipt,
 };
@@ -64,6 +64,7 @@ fn a_store_handed_on_carries_everything() -> Result<(), Box<dyn Error>> {
             env!("CARGO_MANIFEST_DIR"),
             "/fixtures/observations-keripy/v1.json"
         )),
+        include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/queries-keripy/v1.json")),
     ];
     let mut steps = 0;
     for json in fixtures {
@@ -75,7 +76,7 @@ fn a_store_handed_on_carries_everything() -> Result<(), Box<dyn Error>> {
             Kevery::with_store(kevery.into_store()).trusting(trust)
         })?;
     }
-    assert_eq!(steps, 206);
+    assert_eq!(steps, 232);
     Ok(())
 }
 
@@ -111,6 +112,10 @@ impl KelStore for Failing {
         matches: &mut dyn FnMut(&LoggedEvent) -> bool,
     ) -> Result<Option<(u128, LoggedEvent)>, StoreError> {
         self.inner.find_event(identifier, matches)
+    }
+
+    fn events(&self, identifier: &str) -> Result<Vec<(u128, LoggedEvent)>, StoreError> {
+        self.inner.events(identifier)
     }
 
     fn superseded(&self, identifier: &str) -> Result<Vec<LoggedEvent>, StoreError> {
@@ -151,6 +156,25 @@ impl EscrowStore for Failing {
     fn remove_escrowed(&mut self, identifier: &str, said: &str) -> Result<(), StoreError> {
         self.write()?;
         self.inner.remove_escrowed(identifier, said)
+    }
+
+    fn escrowed_queries(&self) -> Result<Vec<(String, String, EscrowedQuery)>, StoreError> {
+        self.inner.escrowed_queries()
+    }
+
+    fn put_escrowed_query(&mut self, requester: &str, said: &str, query: EscrowedQuery) -> Result<(), StoreError> {
+        self.write()?;
+        self.inner.put_escrowed_query(requester, said, query)
+    }
+
+    fn remove_escrowed_query(&mut self, requester: &str, said: &str) -> Result<(), StoreError> {
+        self.write()?;
+        self.inner.remove_escrowed_query(requester, said)
+    }
+
+    fn expire_escrowed_queries(&mut self, cutoff: &Timestamp) -> Result<usize, StoreError> {
+        self.write()?;
+        self.inner.expire_escrowed_queries(cutoff)
     }
 
     fn next_arrival(&mut self) -> Result<u64, StoreError> {

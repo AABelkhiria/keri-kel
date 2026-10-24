@@ -40,6 +40,10 @@
 - Watcher registrations: `Kevery` keeps `/watcher/{watcher}/add` and `/cut` replies signed by
   the controller, the latest per controller, watcher and observed identifier, and queues the OOBIs
   they give, verified against keripy.
+- Queries: `Kevery` answers `logs`, `ksn` and `mbx` queries once its log holds what they ask for,
+  replaying events in first-seen order, superseded ones and the delegator's log included, and
+  escrows the rest until it can, verified against keripy; `LoggedEvent::first_seen` gives each
+  event's first-seen ordinal.
 - Adjudication: `adjudicate` and `Kevery::adjudicate` decide, from what an identifier's watchers
   last reported, whether the local state is consistent, lagging, due an update or contradicted,
   verified against keripy's `Adjudicator`.

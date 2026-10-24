@@ -29,6 +29,8 @@ pub enum Escrow {
     /// A reply is signed by a transferable source whose establishment event is not accepted yet,
     /// or whose signatures do not yet meet its threshold; keripy's reply escrow.
     UnverifiedReply,
+    /// A query asks for what the log does not hold yet; keripy's query-not-found escrow.
+    QueryNotFound,
     /// A delegated event is fully signed and witnessed, but its delegator's approval has not been
     /// found yet; keripy's partially delegated escrow.
     PartiallyDelegated,
@@ -154,6 +156,13 @@ pub enum KelError {
         /// The watchers.
         watchers: usize,
     },
+    /// A query carries no signature naming its requester.
+    QueryWithoutRequester,
+    /// A query asks for what the log does not hold yet, and names no transferable requester, so
+    /// it cannot wait for it.
+    QueryUnanswerable,
+    /// A query's route is not `logs`, `ksn` or `mbx`.
+    UnsupportedQueryRoute,
     /// A reply's route is not one keripy registers: `/ksn`, `/end/role`, `/loc/scheme` or
     /// `/watcher`.
     UnsupportedReplyRoute,
@@ -353,6 +362,9 @@ impl fmt::Display for KelError {
             Self::ThresholdAboveWatchers { threshold, watchers } => {
                 write!(formatter, "threshold {threshold} is above the {watchers} watchers")
             }
+            Self::QueryWithoutRequester => formatter.write_str("query names no requester"),
+            Self::QueryUnanswerable => formatter.write_str("query cannot be answered and cannot wait"),
+            Self::UnsupportedQueryRoute => formatter.write_str("query route is not logs, ksn or mbx"),
             Self::UnsupportedReplyRoute => formatter.write_str("reply route is not kept here"),
             Self::UntrustedKeyStateSource => formatter.write_str("key state notice comes from an untrusted source"),
             Self::StaleKeyState => formatter.write_str("key state notice is older than the local log"),

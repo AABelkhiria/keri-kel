@@ -546,6 +546,13 @@ impl Kever {
         self.said
     }
 
+    /// Returns the first-seen ordinal of the latest accepted event: how many events of this
+    /// identifier were accepted before it, superseded ones included, keripy's `fn`.
+    #[must_use]
+    pub const fn first_seen(&self) -> u128 {
+        self.first_seen
+    }
+
     /// Returns the latest accepted event's kind.
     pub(crate) const fn latest_kind(&self) -> EventKind {
         self.latest_kind

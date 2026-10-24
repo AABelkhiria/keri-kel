@@ -5,7 +5,7 @@
 //! - [`KelStore`]: each identifier's key state, its accepted events by sequence number, and the
 //!   events recovery rotations superseded;
 //! - [`EscrowStore`]: events that cannot be decided yet, keyed by identifier and SAID, with the
-//!   order they entered their escrow;
+//!   order they entered their escrow, and queries the log cannot answer yet;
 //! - [`ReceiptStore`]: receipt signatures waiting for the events they name;
 //! - [`ReplyStore`]: the replies kept, key state notices per identifier and reporting source, end
 //!   roles per controller, role and endpoint, locations per endpoint and scheme, watcher
@@ -32,6 +32,7 @@ use crate::kever::Kever;
 use crate::kevery::{EscrowedEvent, LoggedEvent, WaitingReceipt};
 use crate::notice::KeyStateNotice;
 use crate::observation::ObservationRecord;
+use crate::query::EscrowedQuery;
 use crate::reply::EscrowedReply;
 
 /// Why a store could not read or write.
@@ -87,6 +88,13 @@ pub trait KelStore {
         identifier: &str,
         matches: &mut dyn FnMut(&LoggedEvent) -> bool,
     ) -> Result<Option<(u128, LoggedEvent)>, StoreError>;
+
+    /// Returns every accepted event of an identifier, with its sequence number, in sequence order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be read.
+    fn events(&self, identifier: &str) -> Result<Vec<(u128, LoggedEvent)>, StoreError>;
 
     /// Returns the events of an identifier that recovery rotations superseded, in the order they
     /// were superseded.
@@ -164,6 +172,34 @@ pub trait EscrowStore {
     ///
     /// Returns [`StoreError`] when the store cannot be read.
     fn escrowed_count(&self) -> Result<usize, StoreError>;
+
+    /// Returns every waiting query, with its requester and SAID, in any order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be read.
+    fn escrowed_queries(&self) -> Result<Vec<(String, String, EscrowedQuery)>, StoreError>;
+
+    /// Keeps a waiting query, replacing any with the same requester and SAID.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be written.
+    fn put_escrowed_query(&mut self, requester: &str, said: &str, query: EscrowedQuery) -> Result<(), StoreError>;
+
+    /// Removes a waiting query, if there is one.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be written.
+    fn remove_escrowed_query(&mut self, requester: &str, said: &str) -> Result<(), StoreError>;
+
+    /// Removes every waiting query escrowed before `cutoff`, and returns how many.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the store cannot be written.
+    fn expire_escrowed_queries(&mut self, cutoff: &Timestamp) -> Result<usize, StoreError>;
 
     /// Removes every escrowed event first escrowed before `cutoff`, and returns how many.
     ///
@@ -386,6 +422,7 @@ struct Log {
 pub struct MemoryStore {
     logs: BTreeMap<String, Log>,
     escrowed: BTreeMap<(String, String), EscrowedEvent>,
+    queries: BTreeMap<(String, String), EscrowedQuery>,
     arrivals: u64,
     receipts: Vec<WaitingReceipt>,
     notices: BTreeMap<(String, String), KeyStateNotice>,
@@ -428,6 +465,19 @@ impl KelStore for MemoryStore {
                 .find(|(_, event)| matches(event))
                 .map(|(sequence_number, event)| (*sequence_number, event.clone()))
         }))
+    }
+
+    fn events(&self, identifier: &str) -> Result<Vec<(u128, LoggedEvent)>, StoreError> {
+        Ok(self
+            .logs
+            .get(identifier)
+            .map(|log| {
+                log.events
+                    .iter()
+                    .map(|(sequence_number, event)| (*sequence_number, event.clone()))
+                    .collect()
+            })
+            .unwrap_or_default())
     }
 
     fn superseded(&self, identifier: &str) -> Result<Vec<LoggedEvent>, StoreError> {
@@ -491,6 +541,30 @@ impl EscrowStore for MemoryStore {
     fn remove_escrowed(&mut self, identifier: &str, said: &str) -> Result<(), StoreError> {
         self.escrowed.remove(&(identifier.to_owned(), said.to_owned()));
         Ok(())
+    }
+
+    fn escrowed_queries(&self) -> Result<Vec<(String, String, EscrowedQuery)>, StoreError> {
+        Ok(self
+            .queries
+            .iter()
+            .map(|((requester, said), query)| (requester.clone(), said.clone(), query.clone()))
+            .collect())
+    }
+
+    fn put_escrowed_query(&mut self, requester: &str, said: &str, query: EscrowedQuery) -> Result<(), StoreError> {
+        self.queries.insert((requester.to_owned(), said.to_owned()), query);
+        Ok(())
+    }
+
+    fn remove_escrowed_query(&mut self, requester: &str, said: &str) -> Result<(), StoreError> {
+        self.queries.remove(&(requester.to_owned(), said.to_owned()));
+        Ok(())
+    }
+
+    fn expire_escrowed_queries(&mut self, cutoff: &Timestamp) -> Result<usize, StoreError> {
+        let before = self.queries.len();
+        self.queries.retain(|_, query| query.since() >= cutoff);
+        Ok(before - self.queries.len())
     }
 
     fn next_arrival(&mut self) -> Result<u64, StoreError> {

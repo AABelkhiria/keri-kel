@@ -339,7 +339,20 @@ fn delegator(map: &Sad) -> Result<IdentifierPrefix, KelError> {
 /// Reads an anchor as an event seal when its fields are exactly `i`, `s` and `d`, in order, each
 /// text.
 fn event_seal(anchor: &SadValue) -> Option<EventSeal> {
-    let mut entries = anchor.as_map()?.entries();
+    EventSeal::from_sad(anchor.as_map()?)
+}
+
+impl EventSeal {
+    /// Reads a map as an event seal when its fields are exactly `i`, `s` and `d`, in order, each
+    /// text, as keripy recognises one.
+    #[must_use]
+    pub fn from_sad(map: &Sad) -> Option<Self> {
+        read_seal(map)
+    }
+}
+
+fn read_seal(map: &Sad) -> Option<EventSeal> {
+    let mut entries = map.entries();
     let mut field = |label: &str| match entries.next() {
         Some((found, SadValue::Text(text))) if found == label => Some(text.clone()),
         _ => None,
