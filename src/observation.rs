@@ -23,8 +23,8 @@ use crate::store::Store;
 /// An observation kept: whether the watcher is asked to observe, and the reply that asked.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ObservationRecord {
-    enabled: bool,
-    kept: KeptReply,
+    pub(crate) enabled: bool,
+    pub(crate) kept: KeptReply,
 }
 
 impl ObservationRecord {

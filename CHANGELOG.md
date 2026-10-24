@@ -48,6 +48,9 @@
 - Adjudication: `adjudicate` and `Kevery::adjudicate` decide, from what an identifier's watchers
   last reported, whether the local state is consistent, lagging, due an update or contradicted,
   verified against keripy's `Adjudicator`.
+- `Record`: writes every record a store keeps, key states, logged and escrowed events, waiting
+  receipts, replies and queries, and kept notices, end roles, locations and observations, as
+  readable JSON bytes, and reads them back.
 - Store traits: `Kevery` keeps its logs, escrows and waiting receipts behind `KelStore`,
   `EscrowStore` and `ReceiptStore`, with `MemoryStore` as the default; a failing store is reported
   as `KelError::Store`.

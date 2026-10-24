@@ -16,7 +16,8 @@
 //! everything in memory and is what [`Kevery::new`](crate::Kevery::new) uses.
 //!
 //! Every method reads or writes owned values and may fail with a [`StoreError`], so that a store
-//! can live in a database. The validation rules stay in `Kevery`: a store decides nothing, it only
+//! can live in a database; [`Record`](crate::Record) writes each value a store keeps as bytes and
+//! reads it back. The validation rules stay in `Kevery`: a store decides nothing, it only
 //! keeps what it is given and returns it. A `Kevery` writes as it goes, several writes for one
 //! message; a store that needs a message's writes to land together has to group them itself.
 

@@ -224,6 +224,11 @@ pub enum KelError {
         /// Underlying CESR failure.
         source: Box<CesrError>,
     },
+    /// A stored record could not be written or read back.
+    Record {
+        /// Underlying failure.
+        source: Box<dyn Error + Send + Sync>,
+    },
     /// Attachments could not be encoded.
     Attachment {
         /// Underlying failure.
@@ -285,6 +290,10 @@ impl KelError {
         Self::Cesr {
             source: Box::new(source),
         }
+    }
+
+    pub(crate) fn record(source: impl Into<Box<dyn Error + Send + Sync>>) -> Self {
+        Self::Record { source: source.into() }
     }
 
     pub(crate) fn attachment(source: impl Into<Box<dyn Error + Send + Sync>>) -> Self {
@@ -395,6 +404,7 @@ impl fmt::Display for KelError {
             Self::Prefix { .. } => formatter.write_str("identifier prefix is invalid"),
             Self::Threshold { .. } => formatter.write_str("threshold is invalid"),
             Self::Cesr { .. } => formatter.write_str("CESR material is invalid"),
+            Self::Record { .. } => formatter.write_str("stored record could not be written or read"),
             Self::Attachment { .. } => formatter.write_str("attachments could not be encoded"),
             Self::Store { .. } => formatter.write_str("store could not read or write"),
             Self::Event { .. } => formatter.write_str("key state could not be written"),
@@ -411,7 +421,7 @@ impl Error for KelError {
             Self::Threshold { source } => Some(source.as_ref()),
             Self::Cesr { source } => Some(source.as_ref()),
             Self::Store { source } => Some(source.as_ref()),
-            Self::Attachment { source } | Self::Reply { source } => Some(source.as_ref()),
+            Self::Attachment { source } | Self::Reply { source } | Self::Record { source } => Some(source.as_ref()),
             Self::Event { source } => Some(source.as_ref()),
             _ => None,
         }

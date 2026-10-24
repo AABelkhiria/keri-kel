@@ -55,9 +55,9 @@ pub struct KeyEventFields {
 /// text is kept as written.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EventSeal {
-    identifier: String,
-    sequence_number: String,
-    said: String,
+    pub(crate) identifier: String,
+    pub(crate) sequence_number: String,
+    pub(crate) said: String,
 }
 
 impl EventSeal {

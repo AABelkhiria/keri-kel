@@ -41,6 +41,7 @@
 #![forbid(unsafe_code)]
 
 pub mod adjudication;
+pub mod codec;
 pub mod endpoint;
 pub mod error;
 pub mod event;
@@ -53,6 +54,7 @@ pub mod reply;
 pub mod store;
 
 pub use adjudication::{Adjudication, WatcherReport, adjudicate};
+pub use codec::Record;
 pub use endpoint::{EndRoleRecord, LocationRecord};
 pub use error::{Escrow, KelError};
 pub use event::{EventSeal, KeyEventFields};

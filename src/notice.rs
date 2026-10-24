@@ -51,8 +51,8 @@ impl NoticeTrust {
 /// A key state notice kept: the reported state, and the reply that reported it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct KeyStateNotice {
-    state: KeyStateRecord,
-    kept: KeptReply,
+    pub(crate) state: KeyStateRecord,
+    pub(crate) kept: KeptReply,
 }
 
 impl KeyStateNotice {

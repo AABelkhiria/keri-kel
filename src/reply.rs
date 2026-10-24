@@ -39,9 +39,9 @@ use crate::store::{KelStore, Store, StoreError};
 /// A reply kept, and what decides whether a later reply about the same thing replaces it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct KeptReply {
-    reply: SerializedEvent,
-    timestamp: Timestamp,
-    signed_at: Option<u128>,
+    pub(crate) reply: SerializedEvent,
+    pub(crate) timestamp: Timestamp,
+    pub(crate) signed_at: Option<u128>,
 }
 
 impl KeptReply {
@@ -107,10 +107,10 @@ pub(crate) enum Verdict {
 /// keys made them.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReplySignatures {
-    signer: IdentifierPrefix,
-    sequence_number: u128,
-    said: Said,
-    signatures: Vec<IndexedSignature>,
+    pub(crate) signer: IdentifierPrefix,
+    pub(crate) sequence_number: u128,
+    pub(crate) said: Said,
+    pub(crate) signatures: Vec<IndexedSignature>,
 }
 
 impl ReplySignatures {
@@ -156,9 +156,9 @@ impl ReplySignatures {
 /// offered for it so far.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EscrowedReply {
-    reply: SerializedEvent,
-    groups: Vec<ReplySignatures>,
-    since: Timestamp,
+    pub(crate) reply: SerializedEvent,
+    pub(crate) groups: Vec<ReplySignatures>,
+    pub(crate) since: Timestamp,
 }
 
 impl EscrowedReply {

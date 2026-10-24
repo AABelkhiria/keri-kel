@@ -110,17 +110,17 @@ pub enum Processed {
 /// An accepted event, with the signatures stored for it and the keys and witnesses in force at it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LoggedEvent {
-    event: SerializedEvent,
-    signatures: Vec<IndexedSignature>,
-    witness_signatures: Vec<IndexedSignature>,
-    receipts: Vec<ReceiptCouple>,
-    validator_receipts: Vec<ValidatorReceipt>,
-    keys: Vec<VerificationKey>,
-    witnesses: Vec<IdentifierPrefix>,
-    delegation: Option<SealSourceCouple>,
-    event_seals: Vec<EventSeal>,
-    first_seen: u128,
-    first_seen_at: Timestamp,
+    pub(crate) event: SerializedEvent,
+    pub(crate) signatures: Vec<IndexedSignature>,
+    pub(crate) witness_signatures: Vec<IndexedSignature>,
+    pub(crate) receipts: Vec<ReceiptCouple>,
+    pub(crate) validator_receipts: Vec<ValidatorReceipt>,
+    pub(crate) keys: Vec<VerificationKey>,
+    pub(crate) witnesses: Vec<IdentifierPrefix>,
+    pub(crate) delegation: Option<SealSourceCouple>,
+    pub(crate) event_seals: Vec<EventSeal>,
+    pub(crate) first_seen: u128,
+    pub(crate) first_seen_at: Timestamp,
 }
 
 impl LoggedEvent {
@@ -249,16 +249,16 @@ impl LoggedEvent {
 /// An event waiting to be decided, with everything offered for it so far.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EscrowedEvent {
-    reason: Escrow,
+    pub(crate) reason: Escrow,
     /// When it entered its current escrow, relative to every other entry: keripy retries entries at
     /// the same identifier and sequence number in that order.
-    arrival: u64,
-    sequence_number: u128,
-    event: SerializedEvent,
-    signatures: Vec<IndexedSignature>,
-    witness_signatures: Vec<IndexedSignature>,
-    source: Option<SealSourceCouple>,
-    since: Timestamp,
+    pub(crate) arrival: u64,
+    pub(crate) sequence_number: u128,
+    pub(crate) event: SerializedEvent,
+    pub(crate) signatures: Vec<IndexedSignature>,
+    pub(crate) witness_signatures: Vec<IndexedSignature>,
+    pub(crate) source: Option<SealSourceCouple>,
+    pub(crate) since: Timestamp,
 }
 
 impl EscrowedEvent {
@@ -315,10 +315,10 @@ impl EscrowedEvent {
 /// keys signed, and the indexed signature. keripy stores it as a quadruple in its `vrcs` table.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ValidatorReceipt {
-    validator: IdentifierPrefix,
-    sequence_number: u128,
-    said: Said,
-    signature: IndexedSignature,
+    pub(crate) validator: IdentifierPrefix,
+    pub(crate) sequence_number: u128,
+    pub(crate) said: Said,
+    pub(crate) signature: IndexedSignature,
 }
 
 impl ValidatorReceipt {
@@ -389,11 +389,11 @@ pub enum WaitingSignature {
 /// and SAID, the signature, and when it was received.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WaitingReceipt {
-    identifier: String,
-    sequence_number: u128,
-    said: Said,
-    signature: WaitingSignature,
-    received_at: Timestamp,
+    pub(crate) identifier: String,
+    pub(crate) sequence_number: u128,
+    pub(crate) said: Said,
+    pub(crate) signature: WaitingSignature,
+    pub(crate) received_at: Timestamp,
 }
 
 impl WaitingReceipt {

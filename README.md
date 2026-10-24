@@ -22,6 +22,7 @@ this crate validates.
 | `observation` | Watcher registrations: which `/watcher` replies a `Kevery` keeps, and the OOBIs they queue |
 | `query` | Answers to `logs`, `ksn` and `mbx` queries, and queries waiting for the log |
 | `adjudication` | Whether watchers' reports of an identifier agree with the local state, lag, call for an update, or show duplicity |
+| `codec` | Every record a store keeps, written as readable JSON bytes and read back |
 | `store` | Where a `Kevery` keeps its logs, escrows, waiting receipts and notices: traits, and an in-memory store |
 | `error` | Why an event was refused, and whether waiting could help |
 

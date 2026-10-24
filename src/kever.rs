@@ -48,30 +48,30 @@ use crate::event::KeyEventFields;
 /// One identifier's key state at its latest accepted event, keripy's `Kever`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Kever {
-    identifier: IdentifierPrefix,
-    sequence_number: u128,
-    said: Said,
-    prior: Option<Said>,
-    latest_kind: EventKind,
-    keys: Vec<VerificationKey>,
-    signing_threshold: SigningThreshold,
-    next_digests: Vec<Digest>,
-    next_threshold: SigningThreshold,
-    witnesses: Vec<IdentifierPrefix>,
-    witness_threshold: u32,
-    cuts: Vec<IdentifierPrefix>,
-    adds: Vec<IdentifierPrefix>,
-    last_establishment: (u128, Said),
+    pub(crate) identifier: IdentifierPrefix,
+    pub(crate) sequence_number: u128,
+    pub(crate) said: Said,
+    pub(crate) prior: Option<Said>,
+    pub(crate) latest_kind: EventKind,
+    pub(crate) keys: Vec<VerificationKey>,
+    pub(crate) signing_threshold: SigningThreshold,
+    pub(crate) next_digests: Vec<Digest>,
+    pub(crate) next_threshold: SigningThreshold,
+    pub(crate) witnesses: Vec<IdentifierPrefix>,
+    pub(crate) witness_threshold: u32,
+    pub(crate) cuts: Vec<IdentifierPrefix>,
+    pub(crate) adds: Vec<IdentifierPrefix>,
+    pub(crate) last_establishment: (u128, Said),
     /// The SAIDs of the latest establishment event and every event since, which a recovery
     /// rotation may follow.
-    since_establishment: Vec<Said>,
+    pub(crate) since_establishment: Vec<Said>,
     /// The latest establishment event's prior, which a delegated rotation superseding it follows.
-    establishment_prior: Option<Said>,
-    establishment_only: bool,
-    do_not_delegate: bool,
-    delegator: Option<IdentifierPrefix>,
-    first_seen: u128,
-    first_seen_at: Timestamp,
+    pub(crate) establishment_prior: Option<Said>,
+    pub(crate) establishment_only: bool,
+    pub(crate) do_not_delegate: bool,
+    pub(crate) delegator: Option<IdentifierPrefix>,
+    pub(crate) first_seen: u128,
+    pub(crate) first_seen_at: Timestamp,
 }
 
 /// The signatures an accepted event carried that verified, and for a delegated event the

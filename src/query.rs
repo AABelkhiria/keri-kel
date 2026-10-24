@@ -99,9 +99,9 @@ impl Answered {
 /// A query waiting for the log to hold what it asks for.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EscrowedQuery {
-    query: SerializedEvent,
-    requester: IdentifierPrefix,
-    since: Timestamp,
+    pub(crate) query: SerializedEvent,
+    pub(crate) requester: IdentifierPrefix,
+    pub(crate) since: Timestamp,
 }
 
 impl EscrowedQuery {

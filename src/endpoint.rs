@@ -25,8 +25,8 @@ use crate::store::Store;
 /// An end role kept: whether the role is granted, and the reply that said so.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EndRoleRecord {
-    allowed: bool,
-    kept: KeptReply,
+    pub(crate) allowed: bool,
+    pub(crate) kept: KeptReply,
 }
 
 impl EndRoleRecord {
@@ -47,8 +47,8 @@ impl EndRoleRecord {
 /// A location kept: the endpoint's URL for a scheme, and the reply that gave it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LocationRecord {
-    url: String,
-    kept: KeptReply,
+    pub(crate) url: String,
+    pub(crate) kept: KeptReply,
 }
 
 impl LocationRecord {
