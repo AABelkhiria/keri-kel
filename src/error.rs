@@ -239,7 +239,7 @@ pub enum KelError {
         /// Underlying store failure.
         source: Box<StoreError>,
     },
-    /// The key state could not be written.
+    /// A receipt or query could not be read, or the key state record could not be built.
     Event {
         /// Underlying event failure.
         source: Box<EventError>,
@@ -388,7 +388,7 @@ impl fmt::Display for KelError {
             Self::StaleKeyState => formatter.write_str("key state notice is older than the local log"),
             Self::KeyStateMismatch => formatter.write_str("key state notice contradicts the local log"),
             Self::UnverifiedReply => formatter.write_str("no signature establishes the reply"),
-            Self::Reply { .. } => formatter.write_str("reply signature group could not be checked"),
+            Self::Reply { .. } => formatter.write_str("reply could not be read or its signatures checked"),
             Self::StaleReceipt => formatter.write_str("receipt names an event other than the accepted one"),
             Self::ReceiptorEventMismatch => {
                 formatter.write_str("validator receipt names an event the validator did not accept")
@@ -407,7 +407,7 @@ impl fmt::Display for KelError {
             Self::Record { .. } => formatter.write_str("stored record could not be written or read"),
             Self::Attachment { .. } => formatter.write_str("attachments could not be encoded"),
             Self::Store { .. } => formatter.write_str("store could not read or write"),
-            Self::Event { .. } => formatter.write_str("key state could not be written"),
+            Self::Event { .. } => formatter.write_str("receipt, query or key state record is invalid"),
         }
     }
 }
