@@ -86,6 +86,7 @@ use crate::store::{MemoryStore, Store};
 
 /// What became of one processed message.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
 pub enum Processed {
     /// The event was accepted into its log.
     Accepted,
@@ -376,6 +377,7 @@ enum Check {
 
 /// A receipt signature waiting for the event it names.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum WaitingSignature {
     /// A witness's indexed signature.
     Witness(IndexedSignature),

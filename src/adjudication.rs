@@ -51,6 +51,7 @@ impl WatcherReport {
 /// What the watchers' reports say about an identifier's local key state, keripy's adjudication
 /// cues.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Adjudication {
     /// Every watcher that reported agrees with the local state, keripy's `keyStateConsistent`.
     Consistent(Vec<WatcherReport>),

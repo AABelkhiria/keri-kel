@@ -14,6 +14,7 @@ use crate::store::StoreError;
 
 /// Why an event that is not accepted yet might be accepted later.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
 pub enum Escrow {
     /// Its verified controller signatures do not yet meet the current signing threshold; keripy's
     /// partially signed escrow.

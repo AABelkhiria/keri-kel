@@ -133,6 +133,7 @@ fn ours(answered: &Answered) -> Result<Compared, Box<dyn Error>> {
         ),
         Answer::KeyState(state) => Compared::KeyState(String::from_utf8(state.to_sad()?.to_json_bytes()?)?),
         Answer::Mailbox { identifier, .. } => Compared::Mailbox(identifier.qb64()?),
+        _ => return Err("unknown answer".into()),
     })
 }
 

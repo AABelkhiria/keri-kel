@@ -141,6 +141,7 @@ fn every_case_decides_as_keripy_decides() -> Result<(), Box<dyn Error>> {
             }
             Adjudication::Duplicitous(reports) => (Some("keyStateDuplicitous"), named(reports)?, None),
             Adjudication::Undecided => (None, Vec::new(), None),
+            _ => return Err(format!("{context}: unknown adjudication {adjudication:?}").into()),
         };
         assert_eq!(kind, case.keripy.kind.as_deref(), "{context}: kind");
         assert_eq!(reported, case.keripy.named, "{context}: named watchers");

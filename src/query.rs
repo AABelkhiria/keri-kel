@@ -41,6 +41,7 @@ use crate::store::Store;
 
 /// What a query is answered with.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Answer {
     /// `logs`: the identifier's events to replay, in the order first seen, and its delegator's.
     Replay {
