@@ -498,13 +498,13 @@ impl<S: Store> Kevery<S> {
             .event_kind()
             .map_err(KelError::serialization)?
             .ok_or(KelError::UnexpectedFieldShape { label: "t" })?;
-        let attachments = message.attachments();
         if kind == EventKind::Reply {
             return self.process_reply(message, now);
         }
         if kind == EventKind::Query {
             return self.process_query(message, now);
         }
+        let attachments = message.attachments();
         if kind == EventKind::Receipt {
             return self.process_receipt(
                 message.event(),
