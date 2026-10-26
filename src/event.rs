@@ -88,8 +88,8 @@ impl KeyEventFields {
     ///
     /// Returns [`KelError::UnsupportedKind`] for a message that is not `icp`, `dip`, `rot`, `drt`
     /// or `ixn`, [`KelError::UnexpectedFieldShape`] for a missing or misshapen field, including a
-    /// delegated inception's empty delegator, and layered SAID, prefix, threshold, key or CESR
-    /// failures.
+    /// delegated inception's empty delegator and a witness that is not a basic prefix, and layered
+    /// SAID, prefix, threshold, key or CESR failures.
     pub fn read(event: &SerializedEvent) -> Result<Self, KelError> {
         let kind = event
             .event_kind()
@@ -162,7 +162,7 @@ impl KeyEventFields {
         fields.next_threshold = Some(threshold(map.get("nt"), "nt")?);
         fields.witness_threshold = witness_threshold(map.get("bt"))?;
         if inceptive {
-            fields.witnesses = prefixes(map.get("b"), "b")?;
+            fields.witnesses = witnesses(map.get("b"), "b")?;
             for entry in texts(map.get("c"), "c")? {
                 match entry.parse::<ConfigurationTrait>() {
                     Ok(ConfigurationTrait::EstablishmentOnly) => fields.establishment_only = true,
@@ -172,8 +172,8 @@ impl KeyEventFields {
                 }
             }
         } else {
-            fields.cuts = prefixes(map.get("br"), "br")?;
-            fields.adds = prefixes(map.get("ba"), "ba")?;
+            fields.cuts = witnesses(map.get("br"), "br")?;
+            fields.adds = witnesses(map.get("ba"), "ba")?;
         }
         Ok(fields)
     }
@@ -411,9 +411,16 @@ fn texts<'a>(value: Option<&'a SadValue>, label: &'static str) -> Result<Vec<&'a
         .collect()
 }
 
-fn prefixes(value: Option<&SadValue>, label: &'static str) -> Result<Vec<IdentifierPrefix>, KelError> {
+/// Reads a witness list; a witness must be a basic prefix, as keripy requires.
+fn witnesses(value: Option<&SadValue>, label: &'static str) -> Result<Vec<IdentifierPrefix>, KelError> {
     texts(value, label)?
         .into_iter()
-        .map(|text| IdentifierPrefix::from_qb64(text).map_err(KelError::prefix))
+        .map(|text| {
+            let witness = IdentifierPrefix::from_qb64(text).map_err(KelError::prefix)?;
+            match witness {
+                IdentifierPrefix::Basic(_) => Ok(witness),
+                IdentifierPrefix::SelfAddressing(_) => Err(KelError::UnexpectedFieldShape { label }),
+            }
+        })
         .collect()
 }

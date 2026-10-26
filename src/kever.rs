@@ -702,7 +702,7 @@ fn check_witnessed(
     Ok(verified)
 }
 
-/// The keys of basic witness prefixes; a witness is always a basic prefix.
+/// The witnesses' keys; [`KeyEventFields::read`] admits only basic witness prefixes.
 pub(crate) fn witness_keys(witnesses: &[IdentifierPrefix]) -> Vec<VerificationKey> {
     witnesses
         .iter()
