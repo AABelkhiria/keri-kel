@@ -498,7 +498,7 @@ struct WaitingMirror {
 impl WaitingMirror {
     fn write(waiting: &WaitingReceipt) -> Result<Self, KelError> {
         Ok(Self {
-            identifier: waiting.identifier.clone(),
+            identifier: prefix_text(&waiting.identifier)?,
             s: hex(waiting.sequence_number),
             d: said_text(waiting.said)?,
             signature: match &waiting.signature {
@@ -512,7 +512,7 @@ impl WaitingMirror {
 
     fn read(&self) -> Result<WaitingReceipt, KelError> {
         Ok(WaitingReceipt {
-            identifier: self.identifier.clone(),
+            identifier: prefix(&self.identifier)?,
             sequence_number: number(&self.s)?,
             said: said(&self.d)?,
             signature: match &self.signature {

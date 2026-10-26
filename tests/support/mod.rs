@@ -334,7 +334,7 @@ pub(crate) fn compare(kevery: &Kevery, expected: &Snapshot, context: &str) -> Re
         for (source, notice) in kevery.key_state_notices(&prefix)? {
             notices.push(NoticeSnapshot {
                 identifier: identifier.identifier.clone(),
-                source,
+                source: source.qb64()?,
                 state_json: String::from_utf8(notice.state().to_sad()?.to_json_bytes()?)?,
             });
         }

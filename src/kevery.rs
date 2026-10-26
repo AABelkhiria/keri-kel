@@ -391,7 +391,7 @@ pub enum WaitingSignature {
 /// and SAID, the signature, and when it was received.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WaitingReceipt {
-    pub(crate) identifier: String,
+    pub(crate) identifier: IdentifierPrefix,
     pub(crate) sequence_number: u128,
     pub(crate) said: Said,
     pub(crate) signature: WaitingSignature,
@@ -399,9 +399,9 @@ pub struct WaitingReceipt {
 }
 
 impl WaitingReceipt {
-    /// Returns the receipted event's identifier, as qb64 text.
+    /// Returns the receipted event's identifier.
     #[must_use]
-    pub fn identifier(&self) -> &str {
+    pub const fn identifier(&self) -> &IdentifierPrefix {
         &self.identifier
     }
 
@@ -715,7 +715,7 @@ impl<S: Store> Kevery<S> {
         let identifier = qb64(receipt.identifier())?;
         let sequence_number = receipt.sequence_number();
         let waiting = |signature| WaitingReceipt {
-            identifier: identifier.clone(),
+            identifier: receipt.identifier().clone(),
             sequence_number,
             said: receipt.said(),
             signature,
@@ -865,7 +865,7 @@ impl<S: Store> Kevery<S> {
                 }
                 Check::Waiting => {
                     held = Some(WaitingReceipt {
-                        identifier: identifier.clone(),
+                        identifier: event.identifier().clone(),
                         sequence_number,
                         said: event.said(),
                         signature: WaitingSignature::Validator(validator),
@@ -1013,14 +1013,15 @@ impl<S: Store> Kevery<S> {
         if let WaitingSignature::Validator(validator) = &receipt.signature {
             return self.match_validator(receipt, validator, &said);
         }
+        let identifier = qb64(&receipt.identifier)?;
         let current = self
             .store
-            .kever(&receipt.identifier)
+            .kever(&identifier)
             .map_err(KelError::store)?
             .map(|kever| kever.witnesses().to_vec());
         let escrowed = self
             .store
-            .escrowed(&receipt.identifier, &said)
+            .escrowed(&identifier, &said)
             .map_err(KelError::store)?
             .filter(|escrowed| {
                 escrowed.reason == Escrow::PartiallyWitnessed && escrowed.sequence_number == receipt.sequence_number
@@ -1060,7 +1061,7 @@ impl<S: Store> Kevery<S> {
         }
         merge(&mut escrowed.witness_signatures, verified);
         self.store
-            .put_escrowed(&receipt.identifier, &said, escrowed)
+            .put_escrowed(&identifier, &said, escrowed)
             .map_err(KelError::store)?;
         Ok(Matched::Applied)
     }
@@ -1074,9 +1075,10 @@ impl<S: Store> Kevery<S> {
         validator: &ValidatorReceipt,
         said: &str,
     ) -> Result<Matched, KelError> {
+        let identifier = qb64(&receipt.identifier)?;
         let receipted = self
             .store
-            .event(&receipt.identifier, receipt.sequence_number)
+            .event(&identifier, receipt.sequence_number)
             .map_err(KelError::store)?;
         let Some(mut receipted) = receipted else {
             return Ok(Matched::Kept);
@@ -1092,7 +1094,7 @@ impl<S: Store> Kevery<S> {
                     receipted.validator_receipts.push(validator.clone());
                 }
                 self.store
-                    .update_event(&receipt.identifier, receipt.sequence_number, receipted)
+                    .update_event(&identifier, receipt.sequence_number, receipted)
                     .map_err(KelError::store)?;
                 Ok(Matched::Applied)
             }
@@ -1105,12 +1107,13 @@ impl<S: Store> Kevery<S> {
         let WaitingSignature::Couple(couple) = &receipt.signature else {
             return Ok(Matched::Kept);
         };
-        let Some(kever) = self.store.kever(&receipt.identifier).map_err(KelError::store)? else {
+        let identifier = qb64(&receipt.identifier)?;
+        let Some(kever) = self.store.kever(&identifier).map_err(KelError::store)? else {
             return Ok(Matched::Kept);
         };
         let Some(mut stored) = self
             .store
-            .event(&receipt.identifier, receipt.sequence_number)
+            .event(&identifier, receipt.sequence_number)
             .map_err(KelError::store)?
         else {
             return Ok(Matched::Kept);
@@ -1141,7 +1144,7 @@ impl<S: Store> Kevery<S> {
             }
         }
         self.store
-            .update_event(&receipt.identifier, receipt.sequence_number, stored)
+            .update_event(&identifier, receipt.sequence_number, stored)
             .map_err(KelError::store)?;
         Ok(Matched::Applied)
     }

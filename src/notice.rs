@@ -151,16 +151,22 @@ impl<S: Store> Kevery<S> {
             .map_err(KelError::store)
     }
 
-    /// Returns every key state notice kept about `identifier`, with its source as qb64 text.
+    /// Returns every key state notice kept about `identifier`, with its source.
     ///
     /// # Errors
     ///
-    /// Returns [`KelError::Prefix`] for an identifier that cannot be written as qb64, and
+    /// Returns [`KelError::Prefix`] for an identifier that cannot be written or read as qb64, and
     /// [`KelError::Store`] when the store fails.
-    pub fn key_state_notices(&self, identifier: &IdentifierPrefix) -> Result<Vec<(String, KeyStateNotice)>, KelError> {
+    pub fn key_state_notices(
+        &self,
+        identifier: &IdentifierPrefix,
+    ) -> Result<Vec<(IdentifierPrefix, KeyStateNotice)>, KelError> {
         self.store
             .key_state_notices(&qb64(identifier)?)
-            .map_err(KelError::store)
+            .map_err(KelError::store)?
+            .into_iter()
+            .map(|(source, notice)| Ok((IdentifierPrefix::from_qb64(&source).map_err(KelError::prefix)?, notice)))
+            .collect()
     }
 }
 
