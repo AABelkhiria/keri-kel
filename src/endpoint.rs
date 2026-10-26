@@ -152,9 +152,9 @@ impl<S: Store> Kevery<S> {
     ///
     /// # Errors
     ///
-    /// Returns [`KelError::Prefix`] for an identifier that cannot be written as qb64,
-    /// [`KelError::Store`] when the store fails, and [`KelError::Reply`] for a role or endpoint the
-    /// store holds that cannot be read back.
+    /// Returns [`KelError::Prefix`] for an identifier that cannot be written or read as qb64,
+    /// [`KelError::Store`] when the store fails, and [`KelError::Record`] for a stored role that
+    /// cannot be read back.
     pub fn end_roles(
         &self,
         controller: &IdentifierPrefix,
@@ -164,7 +164,7 @@ impl<S: Store> Kevery<S> {
             .map_err(KelError::store)?
             .into_iter()
             .map(|(role, endpoint, record)| {
-                let role = role.parse::<Role>().map_err(KelError::reply)?;
+                let role = role.parse::<Role>().map_err(KelError::record)?;
                 let endpoint = IdentifierPrefix::from_qb64(&endpoint).map_err(KelError::prefix)?;
                 Ok((role, endpoint, record))
             })
@@ -188,14 +188,14 @@ impl<S: Store> Kevery<S> {
     /// # Errors
     ///
     /// Returns [`KelError::Prefix`] for an identifier that cannot be written as qb64,
-    /// [`KelError::Store`] when the store fails, and [`KelError::Reply`] for a scheme the store
-    /// holds that cannot be read back.
+    /// [`KelError::Store`] when the store fails, and [`KelError::Record`] for a stored scheme that
+    /// cannot be read back.
     pub fn locations(&self, endpoint: &IdentifierPrefix) -> Result<Vec<(Scheme, LocationRecord)>, KelError> {
         self.store
             .locations(&qb64(endpoint)?)
             .map_err(KelError::store)?
             .into_iter()
-            .map(|(scheme, record)| Ok((scheme.parse::<Scheme>().map_err(KelError::reply)?, record)))
+            .map(|(scheme, record)| Ok((scheme.parse::<Scheme>().map_err(KelError::record)?, record)))
             .collect()
     }
 }
