@@ -150,8 +150,9 @@ impl Kever {
     ///
     /// Returns the errors of [`KeyEventFields::read`]; [`KelError::UnsupportedKind`] for anything
     /// but an inception; [`KelError::DelegatorUnknown`] for a delegated inception, whose delegator's
-    /// log only a [`Kevery`](crate::Kevery) can consult; [`KelError::NonZeroInception`]; [`KelError::ThresholdExceedsKeys`];
-    /// [`KelError::NonTransferableInception`]; [`KelError::DuplicateWitness`] and
+    /// log only a [`Kevery`](crate::Kevery) can consult; [`KelError::NonZeroInception`];
+    /// [`KelError::ThresholdExceedsKeys`]; [`KelError::NonTransferableInception`];
+    /// [`KelError::DuplicateWitness`] and
     /// [`KelError::InvalidWitnessThreshold`]; [`KelError::NoVerifiedSignatures`]; and, when waiting
     /// for more signatures could help, [`KelError::NotFullySigned`] or
     /// [`KelError::NotFullyWitnessed`].

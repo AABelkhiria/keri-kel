@@ -4,7 +4,8 @@
 //! a key state notice. [`adjudicate`] compares the latest report of each watcher with the local
 //! state and decides, in this order:
 //!
-//! - any watcher reporting another event at the local sequence number is [`Adjudication::Duplicitous`];
+//! - any watcher reporting another event at the local sequence number is
+//!   [`Adjudication::Duplicitous`];
 //! - watchers ahead of the local state that report different events are duplicitous too; watchers
 //!   ahead that agree, at least `threshold` of them, are an [`Adjudication::Update`] the local log
 //!   can be brought up to from any of them; fewer than `threshold` decide nothing,

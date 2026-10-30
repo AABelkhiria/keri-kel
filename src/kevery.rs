@@ -51,7 +51,7 @@
 //! also supersede the latest delegated rotation, signed with the keys that rotation committed to,
 //! when its delegating event is later in the delegator's log than the superseded rotation's; and
 //! the latest event, when that is an interaction at its sequence number. keripy refuses every other
-//! delegated supersession, and so does this port ([`KelError::SupersedingDelegationNotLater`],
+//! delegated supersession, and so does this crate ([`KelError::SupersedingDelegationNotLater`],
 //! [`KelError::SupersededWithoutDelegation`]).
 //!
 //! One behaviour differs. When a witness's receipt couple is attached to an event, keripy's

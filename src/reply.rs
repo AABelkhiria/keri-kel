@@ -2,8 +2,8 @@
 //! same thing.
 //!
 //! A [`Kevery`] keeps four kinds: key state notices ([`crate::notice`]), end role grants and
-//! endpoint locations ([`crate::endpoint`]), and watcher registrations ([`crate::observation`]). They share how a reply is verified, which this module
-//! holds:
+//! endpoint locations ([`crate::endpoint`]), and watcher registrations ([`crate::observation`]).
+//! They share how a reply is verified, which this module holds:
 //!
 //! - the reply's authority is named by its route or attributes, and a signature attached to it must
 //!   be the authority's own, newer than the reply kept before for the same thing, and valid: a

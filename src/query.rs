@@ -16,7 +16,7 @@
 //! [`Kevery::take_answers`]; each names the requester to send it to.
 //!
 //! keripy does not verify a query's signatures: they only name the requester. Neither does this
-//! port; whether a requester may ask is the application's decision. A query signed by a
+//! crate; whether a requester may ask is the application's decision. A query signed by a
 //! transferable requester's latest establishment keys names that requester; one signed by a
 //! non-transferable key names that key. keripy cannot escrow a query without a transferable
 //! requester: it raises while escrowing, and the query is lost. Here such a query is refused with

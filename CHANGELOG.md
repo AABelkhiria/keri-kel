@@ -3,7 +3,7 @@
 > Following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 > and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2026-10-30
 
 ### Added
 
@@ -51,6 +51,6 @@
 - `Record`: writes every record a store keeps, key states, logged and escrowed events, waiting
   receipts, replies and queries, and kept notices, end roles, locations and observations, as
   readable JSON bytes, and reads them back.
-- Store traits: `Kevery` keeps its logs, escrows and waiting receipts behind `KelStore`,
-  `EscrowStore` and `ReceiptStore`, with `MemoryStore` as the default; a failing store is reported
-  as `KelError::Store`.
+- Store traits: `Kevery` keeps its logs, escrows, waiting receipts and replies behind `KelStore`,
+  `EscrowStore`, `ReceiptStore` and `ReplyStore`, with `MemoryStore` as the default; a failing
+  store is reported as `KelError::Store`.
