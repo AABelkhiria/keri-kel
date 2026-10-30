@@ -486,14 +486,22 @@ impl<S: Store> Kevery<S> {
     ///
     /// # Errors
     ///
-    /// Returns [`KelError::UnsupportedKind`] for a message that is neither a key event nor a
-    /// receipt; [`KelError::StaleReceipt`] for a receipt naming an event
-    /// other than the one accepted at its sequence number;
-    /// [`KelError::ReceiptorEventMismatch`], [`KelError::ReceiptorEventHasNoKeys`] and
-    /// [`KelError::ReceiptSignatureIndexOutOfRange`] for a validator's receipt keripy refuses;
-    /// [`KelError::DelegationForbidden`] and [`KelError::DelegationSourceAtInception`] for a
-    /// delegated event its delegator will never approve; the validation errors of [`Kever`] for
-    /// an event that will never be accepted; and [`KelError::Store`] when the store fails.
+    /// Any message returns [`KelError::Store`] when the store fails, and
+    /// [`KelError::UnsupportedKind`] for a kind this crate does not process. Otherwise:
+    ///
+    /// - A key event returns the validation errors of [`Kever`], and
+    ///   [`KelError::DelegationForbidden`] or [`KelError::DelegationSourceAtInception`] when its
+    ///   delegator will never approve it.
+    /// - A receipt returns [`KelError::Event`] when unreadable, [`KelError::StaleReceipt`] when it
+    ///   names an event other than the one accepted at its sequence number, and
+    ///   [`KelError::ReceiptorEventMismatch`], [`KelError::ReceiptorEventHasNoKeys`] or
+    ///   [`KelError::ReceiptSignatureIndexOutOfRange`] for a validator's receipt keripy refuses.
+    /// - A reply returns [`KelError::Reply`] when unreadable, [`KelError::UnsupportedReplyRoute`],
+    ///   [`KelError::UnverifiedReply`] when no signature establishes it, and
+    ///   [`KelError::UntrustedKeyStateSource`], [`KelError::StaleKeyState`] or
+    ///   [`KelError::KeyStateMismatch`] for a refused key state notice.
+    /// - A query returns [`KelError::Event`] when unreadable, [`KelError::UnsupportedQueryRoute`],
+    ///   [`KelError::QueryWithoutRequester`], and [`KelError::QueryUnanswerable`].
     pub fn process(&mut self, message: &Message, now: &Timestamp) -> Result<Processed, KelError> {
         let kind = message
             .event()
@@ -905,14 +913,13 @@ impl<S: Store> Kevery<S> {
 
     /// Retries everything waiting, in keripy's order: out-of-order events, then receipts waiting
     /// for an escrowed event, then partially delegated, partially witnessed and partially signed
-    /// events, then likely-duplicitous ones, and last waiting replies. An event accepted now is
-    /// first seen at `now`. Returns
-    /// how many events were accepted.
+    /// events, then likely-duplicitous ones, then waiting replies, and last waiting queries. An
+    /// event accepted now is first seen at `now`. Returns how many events were accepted.
     ///
     /// # Errors
     ///
-    /// Returns [`KelError::Store`] when the store fails; an escrowed event refused on retry is
-    /// dropped, not returned.
+    /// Returns [`KelError::Store`] when the store fails; anything refused on retry is dropped, not
+    /// returned.
     pub fn process_escrows(&mut self, now: &Timestamp) -> Result<usize, KelError> {
         let mut accepted = self.retry(Escrow::OutOfOrder, now)?;
         self.match_waiting_receipts()?;
@@ -1149,9 +1156,9 @@ impl<S: Store> Kevery<S> {
         Ok(Matched::Applied)
     }
 
-    /// Drops every escrowed event, waiting receipt and waiting reply first seen before `cutoff`, and returns how
-    /// many were dropped. Timestamps compare as text, which orders them correctly when they share
-    /// a UTC offset, as every timestamp this crate writes does.
+    /// Drops every escrowed event, waiting receipt, reply and query first seen before `cutoff`, and
+    /// returns how many were dropped. Timestamps compare as text, which orders them correctly when
+    /// they share a UTC offset, as every timestamp this crate writes does.
     ///
     /// # Errors
     ///

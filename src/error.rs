@@ -12,7 +12,7 @@ use keri_protocol::threshold::ThresholdError;
 
 use crate::store::StoreError;
 
-/// Why an event that is not accepted yet might be accepted later.
+/// Why a message is held instead of accepted.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Escrow {
