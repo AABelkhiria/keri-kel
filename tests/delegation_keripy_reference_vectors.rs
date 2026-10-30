@@ -133,7 +133,7 @@ fn an_unnamed_anchor_is_found_by_the_escrow_pass() -> Result<(), Box<dyn Error>>
         Processed::Escrowed(Escrow::PartiallyDelegated)
     );
     assert_eq!(kevery.process_escrows(&now)?, 1);
-    assert_eq!(kevery.escrowed_events()?, 0);
+    assert_eq!(kevery.escrowed_event_count()?, 0);
     Ok(())
 }
 

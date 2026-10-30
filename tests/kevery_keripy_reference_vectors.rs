@@ -118,7 +118,7 @@ fn escrowed_items_expire_before_a_cutoff() -> Result<(), Box<dyn Error>> {
     let step = scenario.steps.first().ok_or("no step")?;
     let mut kevery = Kevery::new();
     offer(&mut kevery, step, &now)??;
-    assert_eq!(kevery.escrowed_events()?, 1);
+    assert_eq!(kevery.escrowed_event_count()?, 1);
     assert_eq!(
         kevery.expire_escrows(&now)?,
         0,
@@ -128,6 +128,6 @@ fn escrowed_items_expire_before_a_cutoff() -> Result<(), Box<dyn Error>> {
         kevery.expire_escrows(&Timestamp::parse("2021-01-01T00:00:00.000001+00:00")?)?,
         1
     );
-    assert_eq!(kevery.escrowed_events()?, 0);
+    assert_eq!(kevery.escrowed_event_count()?, 0);
     Ok(())
 }

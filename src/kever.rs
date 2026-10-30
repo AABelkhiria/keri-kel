@@ -589,7 +589,7 @@ impl Kever {
 
     /// Returns whether the inception configured do-not-delegate (`DND`).
     #[must_use]
-    pub const fn does_not_delegate(&self) -> bool {
+    pub const fn do_not_delegate(&self) -> bool {
         self.do_not_delegate
     }
 

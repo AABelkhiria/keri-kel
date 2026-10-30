@@ -1209,7 +1209,7 @@ impl<S: Store> Kevery<S> {
     /// # Errors
     ///
     /// Returns [`KelError::Store`] when the store fails.
-    pub fn escrowed_events(&self) -> Result<usize, KelError> {
+    pub fn escrowed_event_count(&self) -> Result<usize, KelError> {
         self.store.escrowed_count().map_err(KelError::store)
     }
 
@@ -1218,7 +1218,7 @@ impl<S: Store> Kevery<S> {
     /// # Errors
     ///
     /// Returns [`KelError::Store`] when the store fails.
-    pub fn waiting_receipts(&self) -> Result<usize, KelError> {
+    pub fn waiting_receipt_count(&self) -> Result<usize, KelError> {
         self.store.receipt_count().map_err(KelError::store)
     }
 }
@@ -1278,7 +1278,7 @@ impl<S: Store> Delegations for Delegators<'_, S> {
             .kever(&delegator)
             .map_err(KelError::store)?
             .ok_or(KelError::DelegatorUnknown)?;
-        if state.does_not_delegate() {
+        if state.do_not_delegate() {
             return Err(KelError::DelegationForbidden);
         }
         let anchors = |logged: &LoggedEvent| logged.event_seals.iter().any(|seal| seal.names(event));

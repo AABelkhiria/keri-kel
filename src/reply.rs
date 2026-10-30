@@ -360,7 +360,7 @@ impl<S: Store> Kevery<S> {
     /// # Errors
     ///
     /// Returns [`KelError::Store`] when the store fails.
-    pub fn escrowed_replies(&self) -> Result<usize, KelError> {
+    pub fn escrowed_reply_count(&self) -> Result<usize, KelError> {
         Ok(self.store.escrowed_replies().map_err(KelError::store)?.len())
     }
 }

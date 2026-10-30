@@ -79,9 +79,9 @@ fn an_earlier_interaction_is_refused_only_on_retry() -> Result<(), Box<dyn Error
         kevery.process(&message, &now)?,
         Processed::Escrowed(Escrow::PartiallyDelegated)
     );
-    assert_eq!(kevery.escrowed_events()?, 1);
+    assert_eq!(kevery.escrowed_event_count()?, 1);
     assert_eq!(kevery.process_escrows(&now)?, 0);
-    assert_eq!(kevery.escrowed_events()?, 0, "the retry drops it");
+    assert_eq!(kevery.escrowed_event_count()?, 0, "the retry drops it");
     assert!(KelError::SupersededWithoutDelegation.escrow().is_none());
     Ok(())
 }

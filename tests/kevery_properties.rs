@@ -115,9 +115,9 @@ proptest! {
         if enough {
             let logged = fail(kevery.logged(&identifier, 0))?.ok_or_else(|| TestCaseError::fail("no logged inception"))?;
             prop_assert_eq!(logged.witness_signatures().len(), receipted.len());
-            prop_assert_eq!(fail(kevery.escrowed_events())?, 0);
+            prop_assert_eq!(fail(kevery.escrowed_event_count())?, 0);
         } else {
-            prop_assert_eq!(fail(kevery.escrowed_events())?, 1);
+            prop_assert_eq!(fail(kevery.escrowed_event_count())?, 1);
         }
     }
 

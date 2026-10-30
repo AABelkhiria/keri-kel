@@ -309,22 +309,22 @@ pub(crate) fn held(kevery: &Kevery, identifier: &str) -> Result<(Option<String>,
 
 pub(crate) fn compare(kevery: &Kevery, expected: &Snapshot, context: &str) -> Result<(), Box<dyn Error>> {
     assert_eq!(
-        kevery.escrowed_events()?,
+        kevery.escrowed_event_count()?,
         expected.escrowed_events,
         "{context}: escrowed events"
     );
     assert_eq!(
-        kevery.waiting_receipts()?,
+        kevery.waiting_receipt_count()?,
         expected.waiting_receipts,
         "{context}: waiting receipts"
     );
     assert_eq!(
-        kevery.escrowed_replies()?,
+        kevery.escrowed_reply_count()?,
         expected.escrowed_replies,
         "{context}: escrowed replies"
     );
     assert_eq!(
-        kevery.escrowed_queries()?,
+        kevery.escrowed_query_count()?,
         expected.escrowed_queries,
         "{context}: escrowed queries"
     );

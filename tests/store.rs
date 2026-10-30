@@ -347,7 +347,7 @@ fn a_failing_store_is_reported_not_taken_for_a_refusal() -> Result<(), Box<dyn E
     let mut kevery = Kevery::with_store(Failing::default());
     kevery.process(&message("inception")?, &now)?;
     kevery.process(&message("second_interaction")?, &now)?;
-    assert_eq!(kevery.escrowed_events()?, 1);
+    assert_eq!(kevery.escrowed_event_count()?, 1);
 
     kevery.store().failing.set(true);
     let error = kevery
@@ -364,7 +364,7 @@ fn a_failing_store_is_reported_not_taken_for_a_refusal() -> Result<(), Box<dyn E
     assert!(matches!(kevery.process_escrows(&now), Err(KelError::Store { .. })));
 
     kevery.store().failing.set(false);
-    assert_eq!(kevery.escrowed_events()?, 1, "the waiting event was kept");
+    assert_eq!(kevery.escrowed_event_count()?, 1, "the waiting event was kept");
     kevery.process(&message("first_interaction")?, &now)?;
     assert_eq!(kevery.process_escrows(&now)?, 1);
     Ok(())

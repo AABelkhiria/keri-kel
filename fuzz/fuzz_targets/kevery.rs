@@ -31,15 +31,15 @@ fuzz_target!(|data: &[u8]| {
         }
         held(kevery.process_escrows(&now));
     }
-    let escrowed = held(kevery.escrowed_events());
-    let waiting = held(kevery.waiting_receipts());
+    let escrowed = held(kevery.escrowed_event_count());
+    let waiting = held(kevery.waiting_receipt_count());
     assert_eq!(
         held(kevery.process_escrows(&now)),
         0,
         "a second escrow pass accepted something"
     );
-    assert_eq!(held(kevery.escrowed_events()), escrowed);
-    assert!(held(kevery.waiting_receipts()) <= waiting);
+    assert_eq!(held(kevery.escrowed_event_count()), escrowed);
+    assert!(held(kevery.waiting_receipt_count()) <= waiting);
     for message in &messages {
         if let Ok(event) = keri_kel::KeyEventFields::read(message.event()) {
             if let Some(kever) = held(kevery.kever(event.identifier())) {

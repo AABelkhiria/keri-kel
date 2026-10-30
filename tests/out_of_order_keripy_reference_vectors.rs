@@ -77,6 +77,6 @@ fn one_pass_accepts_a_log_offered_backwards() -> Result<(), Box<dyn Error>> {
     let message = Message::from_bytes(&decode_hex(&inception.raw_hex)?)?;
     assert_eq!(kevery.process(&message, &now)?, Processed::Accepted);
     assert_eq!(kevery.process_escrows(&now)?, early.len());
-    assert_eq!(kevery.escrowed_events()?, 0);
+    assert_eq!(kevery.escrowed_event_count()?, 0);
     Ok(())
 }
